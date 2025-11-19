@@ -44,6 +44,28 @@ def get_association(
     return assoc
 
 
+@router.get(
+    "/user/{email_unal}",
+    response_model=List[UserUnitAssociate]
+)
+def get_units_by_user(
+    email_unal: str,
+    session: Session = Depends(get_session)
+):
+    return UserUnitAssociateService.get_by_user(email_unal, session)
+
+
+@router.get(
+    "/unit/{cod_unit}",
+    response_model=List[UserUnitAssociate]
+)
+def get_users_by_unit(
+    cod_unit: str,
+    session: Session = Depends(get_session)
+):
+    return UserUnitAssociateService.get_by_unit(cod_unit, session)
+
+
 @router.post(
     "/",
     response_model=UserUnitAssociate,

@@ -49,6 +49,34 @@ def get_association(
     return assoc
 
 
+@router.get(
+        "/school/{cod_school}",
+        response_model=List[SchoolHeadquartersAssociate]
+)
+def get_headerquarters_by_school(
+    cod_school: str,
+    session: Session = Depends(get_session)
+):
+    return SchoolHeadquartersAssociateService.get_by_school(
+        cod_school,
+        session
+    )
+
+
+@router.get(
+        "/headquarters/{cod_headquarters}",
+        response_model=List[SchoolHeadquartersAssociate]
+)
+def get_schools_by_headquarters(
+    cod_headquarters: str,
+    session: Session = Depends(get_session)
+):
+    return SchoolHeadquartersAssociateService.get_by_headquarters(
+        cod_headquarters,
+        session
+    )
+
+
 @router.post(
     "/",
     response_model=SchoolHeadquartersAssociate,
