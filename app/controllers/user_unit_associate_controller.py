@@ -45,25 +45,32 @@ def get_association(
 
 
 @router.get(
-    "/user/{email_unal}",
+    "/user/{email_unal}/{cod_period}",
     response_model=List[UserUnitAssociate]
 )
 def get_units_by_user(
     email_unal: str,
+    cod_period: str = None,
     session: Session = Depends(get_session)
 ):
-    return UserUnitAssociateService.get_by_user(email_unal, session)
+    return UserUnitAssociateService.get_by_user(
+        email_unal, cod_period, session
+    )
 
 
 @router.get(
-    "/unit/{cod_unit}",
+    "/unit/{cod_unit}/{cod_period}",
+
     response_model=List[UserUnitAssociate]
 )
 def get_users_by_unit(
     cod_unit: str,
+    cod_period: str = None,
     session: Session = Depends(get_session)
 ):
-    return UserUnitAssociateService.get_by_unit(cod_unit, session)
+    return UserUnitAssociateService.get_by_unit(
+        cod_unit, cod_period, session
+    )
 
 
 @router.post(

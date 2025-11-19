@@ -15,15 +15,27 @@ class UnitSchoolAssociateRepository:
             select(UnitSchoolAssociate).offset(start).limit(limit)
         ).all()
 
-    def get_by_unit(self, cod_unit: str) -> List[UnitSchoolAssociate]:
+    def get_by_unit(
+            self, cod_unit: str, cod_period: str = None
+    ) -> List[UnitSchoolAssociate]:
         statement = select(UnitSchoolAssociate).where(
-            UnitSchoolAssociate.cod_unit == cod_unit
+            UnitSchoolAssociate.cod_unit == cod_unit and
+            (
+                UnitSchoolAssociate.cod_period == cod_period or
+                cod_period is None
+            )
         )
         return self.session.exec(statement).all()
 
-    def get_by_school(self, cod_school: str) -> List[UnitSchoolAssociate]:
+    def get_by_school(
+            self, cod_school: str, cod_period: str = None
+    ) -> List[UnitSchoolAssociate]:
         statement = select(UnitSchoolAssociate).where(
-            UnitSchoolAssociate.cod_school == cod_school
+            UnitSchoolAssociate.cod_school == cod_school and
+            (
+                UnitSchoolAssociate.cod_period == cod_period or
+                cod_period is None
+            )
         )
         return self.session.exec(statement).all()
 

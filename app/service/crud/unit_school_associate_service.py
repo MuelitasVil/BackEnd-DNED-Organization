@@ -25,14 +25,18 @@ class UnitSchoolAssociateService:
     @staticmethod
     def get_by_unit(
         cod_unit: str,
-        session: Session
+        session: Session,
+        cod_period: str = None
     ) -> List[UnitSchoolAssociate]:
-        return UnitSchoolAssociateRepository(session).get_by_unit(cod_unit)
+        return UnitSchoolAssociateRepository(session).get_by_unit(
+            cod_unit, cod_period
+        )
 
     @staticmethod
     def get_by_school(
         cod_school: str,
-        session: Session
+        session: Session,
+        cod_period: str = None
     ) -> List[UnitSchoolAssociate]:
         return UnitSchoolAssociateRepository(session).get_by_school(cod_school)
 

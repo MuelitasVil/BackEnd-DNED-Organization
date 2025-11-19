@@ -29,19 +29,28 @@ class SchoolHeadquartersAssociateRepository:
         )
 
     def get_by_school(
-        self, cod_school: str
+        self, cod_school: str, cod_period: str = None
     ) -> List[SchoolHeadquartersAssociate]:
         statement = select(SchoolHeadquartersAssociate).where(
-            SchoolHeadquartersAssociate.cod_school == cod_school
+            SchoolHeadquartersAssociate.cod_school == cod_school and
+            (
+                SchoolHeadquartersAssociate.cod_period == cod_period or
+                cod_period is None
+            )
         )
         return self.session.exec(statement).all()
 
     def get_by_headquarters(
             self,
-            cod_headquarters: str
+            cod_headquarters: str,
+            cod_period: str = None
     ) -> List[SchoolHeadquartersAssociate]:
         statement = select(SchoolHeadquartersAssociate).where(
-            SchoolHeadquartersAssociate.cod_headquarters == cod_headquarters
+            SchoolHeadquartersAssociate.cod_headquarters == cod_headquarters and  # noqa: E501
+            (
+                SchoolHeadquartersAssociate.cod_period == cod_period or
+                cod_period is None
+            )
         )
         return self.session.exec(statement).all()
 

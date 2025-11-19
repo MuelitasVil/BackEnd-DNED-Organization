@@ -25,16 +25,22 @@ class UserUnitAssociateService:
     @staticmethod
     def get_by_user(
         email_unal: str,
-        session: Session
+        session: Session,
+        cod_period: str = None
     ) -> List[UserUnitAssociate]:
-        return UserUnitAssociateRepository(session).get_by_user(email_unal)
+        return UserUnitAssociateRepository(session).get_by_user(
+            email_unal, cod_period
+        )
 
     @staticmethod
     def get_by_unit(
         cod_unit: str,
-        session: Session
+        session: Session,
+        cod_period: str = None
     ) -> List[UserUnitAssociate]:
-        return UserUnitAssociateRepository(session).get_by_unit(cod_unit)
+        return UserUnitAssociateRepository(session).get_by_unit(
+            cod_unit, cod_period
+        )
 
     @staticmethod
     def get_by_id(

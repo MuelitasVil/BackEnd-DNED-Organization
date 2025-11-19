@@ -17,15 +17,27 @@ class UserUnitAssociateRepository:
             .limit(limit)
         ).all()
 
-    def get_by_user(self, email_unal: str) -> List[UserUnitAssociate]:
+    def get_by_user(
+            self, email_unal: str, cod_period: str = None
+    ) -> List[UserUnitAssociate]:
         statement = select(UserUnitAssociate).where(
-            UserUnitAssociate.email_unal == email_unal
+            UserUnitAssociate.email_unal == email_unal and
+            (
+                UserUnitAssociate.cod_period == cod_period or
+                cod_period is None
+            )
         )
         return self.session.exec(statement).all()
 
-    def get_by_unit(self, cod_unit: str) -> List[UserUnitAssociate]:
+    def get_by_unit(
+            self, cod_unit: str, cod_period: str = None
+    ) -> List[UserUnitAssociate]:
         statement = select(UserUnitAssociate).where(
-            UserUnitAssociate.cod_unit == cod_unit
+            UserUnitAssociate.cod_unit == cod_unit and
+            (
+                UserUnitAssociate.cod_period == cod_period or
+                cod_period is None
+            )
         )
         return self.session.exec(statement).all()
 
