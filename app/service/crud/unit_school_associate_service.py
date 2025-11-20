@@ -25,8 +25,8 @@ class UnitSchoolAssociateService:
     @staticmethod
     def get_by_unit(
         cod_unit: str,
-        session: Session,
-        cod_period: str = None
+        cod_period: str,
+        session: Session
     ) -> List[UnitSchoolAssociate]:
         return UnitSchoolAssociateRepository(session).get_by_unit(
             cod_unit, cod_period
@@ -101,7 +101,7 @@ class UnitSchoolAssociateService:
             cod_school,
             cod_period
         )
-    
+
     @staticmethod
     def bulk_insert_ignore(
         users: List[UnitSchoolAssociateInput],

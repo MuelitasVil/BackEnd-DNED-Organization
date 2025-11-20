@@ -69,8 +69,6 @@ def get_units_by_school(
     cod_period: str = None,
     session: Session = Depends(get_session)
 ):
-    print("_____________")
-    print("In controller")
     return UnitSchoolAssociateService.get_by_school(
         cod_school, cod_period, session
     )

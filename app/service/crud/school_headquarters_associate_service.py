@@ -27,8 +27,8 @@ class SchoolHeadquartersAssociateService:
     @staticmethod
     def get_by_headquarters(
         cod_headquarters: str,
+        cod_period: str,
         session: Session,
-        cod_period: str = None
     ) -> List[SchoolHeadquartersAssociate]:
         return SchoolHeadquartersAssociateRepository(
             session
@@ -40,8 +40,8 @@ class SchoolHeadquartersAssociateService:
     @staticmethod
     def get_by_school(
         cod_school: str,
-        session: Session,
-        cod_period: str = None
+        cod_period: str,
+        session: Session
     ) -> List[SchoolHeadquartersAssociate]:
         return SchoolHeadquartersAssociateRepository(session).get_by_school(
             cod_school,

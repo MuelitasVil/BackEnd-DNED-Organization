@@ -35,8 +35,8 @@ class UserUnitAssociateService:
     @staticmethod
     def get_by_unit(
         cod_unit: str,
-        session: Session,
-        cod_period: str = None
+        cod_period: str,
+        session: Session
     ) -> List[UserUnitAssociate]:
         return UserUnitAssociateRepository(session).get_by_unit(
             cod_unit, cod_period
