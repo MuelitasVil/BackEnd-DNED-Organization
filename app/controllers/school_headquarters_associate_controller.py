@@ -30,7 +30,7 @@ def list_associations(
     )
 
 
-@router.get("/{cod_school}/{cod_headquarters}/{cod_period}",
+@router.get("/by-key/{cod_school}/{cod_headquarters}/{cod_period}",
             response_model=SchoolHeadquartersAssociate)
 def get_association(
     cod_school: str,
@@ -50,7 +50,7 @@ def get_association(
 
 
 @router.get(
-        "/school/{cod_school}/{cod_period}",
+        "/by-school/{cod_school}/{cod_period}",
         response_model=List[SchoolHeadquartersAssociate]
 )
 def get_headerquarters_by_school(
@@ -66,7 +66,7 @@ def get_headerquarters_by_school(
 
 
 @router.get(
-        "/headquarters/{cod_headquarters}/{cod_period}",
+        "/by-headquarters/{cod_headquarters}/{cod_period}",
         response_model=List[SchoolHeadquartersAssociate]
 )
 def get_schools_by_headquarters(

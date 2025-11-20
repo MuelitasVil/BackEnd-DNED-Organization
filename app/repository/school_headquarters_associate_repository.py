@@ -1,4 +1,4 @@
-from sqlmodel import Session, insert, select
+from sqlmodel import Session, and_, insert, select
 from typing import List, Optional
 
 from app.domain.models.school_headquarters_associate import (
@@ -32,10 +32,9 @@ class SchoolHeadquartersAssociateRepository:
         self, cod_school: str, cod_period: str = None
     ) -> List[SchoolHeadquartersAssociate]:
         statement = select(SchoolHeadquartersAssociate).where(
-            SchoolHeadquartersAssociate.cod_school == cod_school and
-            (
-                SchoolHeadquartersAssociate.cod_period == cod_period or
-                cod_period is None
+            and_(
+                SchoolHeadquartersAssociate.cod_school == cod_school,
+                SchoolHeadquartersAssociate.cod_period == cod_period
             )
         )
         return self.session.exec(statement).all()
@@ -46,10 +45,9 @@ class SchoolHeadquartersAssociateRepository:
             cod_period: str = None
     ) -> List[SchoolHeadquartersAssociate]:
         statement = select(SchoolHeadquartersAssociate).where(
-            SchoolHeadquartersAssociate.cod_headquarters == cod_headquarters and  # noqa: E501
-            (
-                SchoolHeadquartersAssociate.cod_period == cod_period or
-                cod_period is None
+            and_(
+                SchoolHeadquartersAssociate.cod_headquarters == cod_headquarters,  # noqa: E501
+                SchoolHeadquartersAssociate.cod_period == cod_period
             )
         )
         return self.session.exec(statement).all()

@@ -35,10 +35,12 @@ class UnitSchoolAssociateService:
     @staticmethod
     def get_by_school(
         cod_school: str,
-        session: Session,
-        cod_period: str = None
+        cod_period: str,
+        session: Session
     ) -> List[UnitSchoolAssociate]:
-        return UnitSchoolAssociateRepository(session).get_by_school(cod_school)
+        return UnitSchoolAssociateRepository(session).get_by_school(
+            cod_school, cod_period
+        )
 
     @staticmethod
     def get_by_id(
@@ -50,7 +52,7 @@ class UnitSchoolAssociateService:
         return UnitSchoolAssociateRepository(session).get_by_id(
             cod_unit, cod_school, cod_period
         )
-    
+
     @staticmethod
     def saveWithUnitAndSchool(
         unitInput: UnitUnalInput,

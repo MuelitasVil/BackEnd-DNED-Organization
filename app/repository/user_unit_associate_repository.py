@@ -1,4 +1,4 @@
-from sqlmodel import Session, insert, select
+from sqlmodel import Session, and_, insert, select
 from typing import List, Optional
 
 from app.domain.models.user_unit_associate import UserUnitAssociate
@@ -21,10 +21,9 @@ class UserUnitAssociateRepository:
             self, email_unal: str, cod_period: str = None
     ) -> List[UserUnitAssociate]:
         statement = select(UserUnitAssociate).where(
-            UserUnitAssociate.email_unal == email_unal and
-            (
-                UserUnitAssociate.cod_period == cod_period or
-                cod_period is None
+            and_(
+                UserUnitAssociate.email_unal == email_unal,
+                UserUnitAssociate.cod_period == cod_period
             )
         )
         return self.session.exec(statement).all()
@@ -33,10 +32,9 @@ class UserUnitAssociateRepository:
             self, cod_unit: str, cod_period: str = None
     ) -> List[UserUnitAssociate]:
         statement = select(UserUnitAssociate).where(
-            UserUnitAssociate.cod_unit == cod_unit and
-            (
-                UserUnitAssociate.cod_period == cod_period or
-                cod_period is None
+            and_(
+                UserUnitAssociate.cod_unit == cod_unit,
+                UserUnitAssociate.cod_period == cod_period
             )
         )
         return self.session.exec(statement).all()

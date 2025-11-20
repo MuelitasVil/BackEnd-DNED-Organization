@@ -29,7 +29,7 @@ def list_associations(
 
 
 @router.get(
-    "/{cod_unit}/{cod_school}/{cod_period}",
+    "/by-key/{cod_unit}/{cod_school}/{cod_period}",
     response_model=UnitSchoolAssociate
 )
 def get_association(
@@ -47,7 +47,7 @@ def get_association(
 
 
 @router.get(
-    "/unit/{cod_unit}/{cod_period}",
+    "/by-unit/{cod_unit}/{cod_period}",
     response_model=List[UnitSchoolAssociate]
 )
 def get_schools_by_unit(
@@ -61,7 +61,7 @@ def get_schools_by_unit(
 
 
 @router.get(
-    "/school/{cod_school}/{cod_period}",
+    "/by-school/{cod_school}/{cod_period}",
     response_model=List[UnitSchoolAssociate]
 )
 def get_units_by_school(
@@ -69,6 +69,8 @@ def get_units_by_school(
     cod_period: str = None,
     session: Session = Depends(get_session)
 ):
+    print("_____________")
+    print("In controller")
     return UnitSchoolAssociateService.get_by_school(
         cod_school, cod_period, session
     )

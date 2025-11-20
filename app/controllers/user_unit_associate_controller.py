@@ -27,7 +27,7 @@ def list_associations(
 
 
 @router.get(
-    "/{email_unal}/{cod_unit}/{cod_period}",
+    "/by-key/{email_unal}/{cod_unit}/{cod_period}",
     response_model=UserUnitAssociate
 )
 def get_association(
@@ -45,7 +45,7 @@ def get_association(
 
 
 @router.get(
-    "/user/{email_unal}/{cod_period}",
+    "/by-user/{email_unal}/{cod_period}",
     response_model=List[UserUnitAssociate]
 )
 def get_units_by_user(
@@ -59,7 +59,7 @@ def get_units_by_user(
 
 
 @router.get(
-    "/unit/{cod_unit}/{cod_period}",
+    "/by-unit/{cod_unit}/{cod_period}",
 
     response_model=List[UserUnitAssociate]
 )

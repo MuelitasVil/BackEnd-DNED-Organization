@@ -1,10 +1,14 @@
-from sqlmodel import Session, insert, select
+from sqlmodel import Session, and_, insert, select
 from typing import List, Optional
 
 from app.domain.models.unit_school_associate import UnitSchoolAssociate
+from app.utils.app_logger import AppLogger
 
 
 class UnitSchoolAssociateRepository:
+
+    logger = AppLogger(__file__)
+
     def __init__(self, session: Session):
         self.session = session
 
@@ -19,10 +23,9 @@ class UnitSchoolAssociateRepository:
             self, cod_unit: str, cod_period: str = None
     ) -> List[UnitSchoolAssociate]:
         statement = select(UnitSchoolAssociate).where(
-            UnitSchoolAssociate.cod_unit == cod_unit and
-            (
-                UnitSchoolAssociate.cod_period == cod_period or
-                cod_period is None
+            and_(
+                UnitSchoolAssociate.cod_unit == cod_unit,
+                UnitSchoolAssociate.cod_period == cod_period
             )
         )
         return self.session.exec(statement).all()
@@ -30,13 +33,17 @@ class UnitSchoolAssociateRepository:
     def get_by_school(
             self, cod_school: str, cod_period: str = None
     ) -> List[UnitSchoolAssociate]:
+        self.logger.info(
+            f"Fetching by school: {cod_school}, period: {cod_period}"
+        )
         statement = select(UnitSchoolAssociate).where(
-            UnitSchoolAssociate.cod_school == cod_school and
-            (
-                UnitSchoolAssociate.cod_period == cod_period or
-                cod_period is None
+            and_(
+                UnitSchoolAssociate.cod_school == cod_school,
+                UnitSchoolAssociate.cod_period == cod_period
             )
         )
+        print("________________________________")
+        print(statement)
         return self.session.exec(statement).all()
 
     def get_by_id(

@@ -26,6 +26,7 @@ app = FastAPI()
 
 @app.get("/")
 def read_root():
+    print("Hello World Endpoint Called")
     return {"Hello": "World"}
 
 
