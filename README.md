@@ -146,7 +146,7 @@ pyjwt==2.8.0
 
 ## Exponer con ngrok 
 ```bash 
-ngrok http 8080
+ngrok http 8000
 ```
 
 ---
