@@ -24,6 +24,15 @@ class HeadquartersService:
         )
 
     @staticmethod
+    def get_by_name(
+        name_headquarters: str,
+        session: Session
+    ) -> List[Headquarters]:
+        return HeadquartersRepository(session).get_by_name(
+            name_headquarters
+        )
+
+    @staticmethod
     def create(
         input_data: HeadquartersInput,
         session: Session

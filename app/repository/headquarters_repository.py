@@ -19,6 +19,12 @@ class HeadquartersRepository:
     def get_by_id(self, cod_headquarters: str) -> Optional[Headquarters]:
         return self.session.get(Headquarters, cod_headquarters)
 
+    def get_by_name(self, name_headquarters: str) -> List[Headquarters]:
+        statement = select(Headquarters).where(
+            Headquarters.name == name_headquarters
+        )
+        return self.session.exec(statement).all()
+
     def create(self, headquarters: Headquarters) -> Headquarters:
         self.session.add(headquarters)
         self.session.commit()

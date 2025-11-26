@@ -23,12 +23,23 @@ def list_headquarters(
     return HeadquartersService.get_all(session, start=start, limit=limit)
 
 
-@router.get("/{cod_headquarters}", response_model=Headquarters)
+@router.get("/by_code/{cod_headquarters}", response_model=Headquarters)
 def get_headquarters(
     cod_headquarters: str,
     session: Session = Depends(get_session)
 ):
     hq = HeadquartersService.get_by_id(cod_headquarters, session)
+    if not hq:
+        raise HTTPException(status_code=404, detail="Headquarters not found")
+    return hq
+
+
+@router.get("/by_name/{name_headquarters}", response_model=List[Headquarters])
+def get_headquarters_by_name(
+    name_headquarters: str,
+    session: Session = Depends(get_session)
+):
+    hq = HeadquartersService.get_by_name(name_headquarters, session)
     if not hq:
         raise HTTPException(status_code=404, detail="Headquarters not found")
     return hq
