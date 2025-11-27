@@ -41,7 +41,7 @@ class SchoolService:
     @staticmethod
     def delete(cod_school: str, session: Session) -> bool:
         return SchoolRepository(session).delete(cod_school)
-    
+
     @staticmethod
     def bulk_insert_ignore(
         users: List[SchoolInput],

@@ -3,7 +3,7 @@ from typing import List, Optional
 
 from app.repository.email_sender_unit_repository import (
     EmailSenderUnitRepository
-) 
+)
 from app.domain.models.email_sender_unit import EmailSenderUnit
 from app.domain.dtos.email_sender_unit.email_sender_unit_input import (
     EmailSenderUnitInput
