@@ -9,7 +9,7 @@ from app.domain.dtos.headquarters.headquarters_input import HeadquartersInput
 class HeadquartersService:
     @staticmethod
     def get_all(
-        session: Session, start: int = 0, limit: int = 100
+        session: Session, start: int = 0, limit: int = 200
     ) -> List[Headquarters]:
         repo = HeadquartersRepository(session)
         return repo.get_all(start=start, limit=limit)

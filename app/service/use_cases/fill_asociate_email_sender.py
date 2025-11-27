@@ -36,7 +36,11 @@ def fill_associate_email_sender(session: Session):
     schools: list[School] = SchoolService.get_all(session)
 
     # Todo : this limit should be removed when we have more units
-    units: list[UnitUnal] = UnitUnalService.get_all(session, limit=1000)
+    units: list[UnitUnal] = UnitUnalService.get_all(session, limit=2000)
+
+    logger.info(f"Total unidades academicas: {len(units)}")
+    logger.info(f"Total sedes: {len(headquarters)}")
+    logger.info(f"Total escuelas: {len(schools)}")
 
     logger.info("Email senders encontrados: ")
     for sender in email_senders:

@@ -9,7 +9,7 @@ from app.domain.dtos.email_sender.email_sender_input import EmailSenderInput
 class EmailSenderService:
     @staticmethod
     def get_all(
-        session: Session, start: int = 0, limit: int = 100
+        session: Session, start: int = 0, limit: int = 200
     ) -> List[EmailSender]:
         repo = EmailSenderRepository(session)
         return repo.get_all(start=start, limit=limit)
