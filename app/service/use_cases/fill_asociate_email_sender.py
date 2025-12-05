@@ -7,8 +7,7 @@ from app.domain.models.email_sender_unit import EmailSenderUnit
 from app.domain.models.headquarters import Headquarters
 from app.domain.models.school import School
 
-from app.domain.enums.email_sender.email_sender import OrgType, Role
-
+from app.domain.enums.email_sender.email_sender import OrgType
 from app.service.crud.email_sender_service import EmailSenderService
 from app.service.crud.email_sender_unit_service import EmailSenderUnitService
 from app.service.crud.email_sender_school_service import (
@@ -171,8 +170,7 @@ def _get_email_sender_headquarters(
     for sender in all_headquarters_senders:
         hq_sender = EmailSenderHeadquarters(
             sender_id=sender.email,
-            cod_headquarters=cod_headquarters,
-            role=Role.OWNER.value
+            cod_headquarters=cod_headquarters
         )
         email_senders_headquarters.append(hq_sender)
 
@@ -190,13 +188,13 @@ def _get_email_sender_school(
     sc_sender: EmailSenderSchool
 
     all_school_senders: list[EmailSender] = (
-        senders_headquarters + senders_school + senders_global)
+        senders_headquarters + senders_school + senders_global
+        )
 
     for sender in all_school_senders:
         sc_sender = EmailSenderSchool(
             sender_id=sender.email,
-            cod_school=cod_school,
-            role=Role.OWNER.value
+            cod_school=cod_school
         )
         email_senders_schools.append(sc_sender)
 
@@ -207,21 +205,21 @@ def _get_email_sender_units(
         units: list[str],
         senders_headquarters: list[EmailSender],
         senders_global: list[EmailSender],
-        sendol_school: str
+        senders_school: list[EmailSender]
 ) -> list[EmailSenderUnit]:
     email_senders_units: list[EmailSenderUnit] = []
     sender: EmailSender
     sc_sender: EmailSenderUnit
 
     all_school_units: list[EmailSender] = (
-        senders_headquarters + sendol_school + senders_global)
+        senders_headquarters + senders_school + senders_global
+    )
 
     for cod_unit in units:
         for sender in all_school_units:
             sc_sender = EmailSenderUnit(
                 sender_id=sender.email,
-                cod_school=cod_unit,
-                role=Role.OWNER.value
+                cod_unit=cod_unit
             )
             email_senders_units.append(sc_sender)
 
