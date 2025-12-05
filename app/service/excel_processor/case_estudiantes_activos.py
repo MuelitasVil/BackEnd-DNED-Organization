@@ -326,11 +326,26 @@ def get_user_from_row(row: Tuple[Cell, ...]) -> UserUnalInput:
 
 
 def get_unit_from_row(row: Tuple[Cell, ...]) -> UnitUnalInput:
+    sede: str = get_value_from_row(row, EstudianteActivos.SEDE.value)
+    tipoEstudiante: str = get_value_from_row(
+        row, EstudianteActivos.TIPO_NIVEL.value
+    )
+
+    if tipoEstudiante == General_Values.PREGRADO.value:
+        tipoEstudiante = "pre"
+    elif tipoEstudiante == General_Values.POSGRADO.value:
+        tipoEstudiante = "pos"
+
+    prefix_sede: str = sede.split(" ")[1][:3].lower()
+    if sede == SedeEnum.SEDE_DE_LA_PAZ._name:
+        prefix_sede = sede.split(" ")[3][:3].lower()
+
     cod_unit: str = get_value_from_row(row, EstudianteActivos.COD_PLAN.value)
     plan: str = get_value_from_row(row, EstudianteActivos.PLAN.value)
     tipo_nivel: str = get_value_from_row(
         row, EstudianteActivos.TIPO_NIVEL.value
     )
+    cod_unit = f"{cod_unit}_{tipoEstudiante}_{prefix_sede}"
     email: str = f"{cod_unit}@unal.edu.co"
     return UnitUnalInput(
         cod_unit=cod_unit,
