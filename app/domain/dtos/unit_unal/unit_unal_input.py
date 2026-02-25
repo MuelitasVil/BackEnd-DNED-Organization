@@ -7,4 +7,4 @@ class UnitUnalInput(BaseModel):
     email: Optional[str] = None
     name: Optional[str] = None
     description: Optional[str] = None
-    type_unit: Optional[str] = None
+    type_user: Optional[str] = None

@@ -545,9 +545,6 @@ def _get_unit_from_row(row: Tuple[Cell, ...]) -> UnitUnalInput:
 
     cod_unit: str = get_value_from_row(row, EstudianteActivos.COD_PLAN.value)
     plan: str = get_value_from_row(row, EstudianteActivos.PLAN.value)
-    tipo_nivel: str = get_value_from_row(
-        row, EstudianteActivos.TIPO_NIVEL.value
-    )
     cod_unit = f"{cod_unit}_{tipoEstudiante}_{prefix_sede}"
     email: str = f"{cod_unit}@unal.edu.co"
     return UnitUnalInput(
@@ -555,7 +552,7 @@ def _get_unit_from_row(row: Tuple[Cell, ...]) -> UnitUnalInput:
         email=email,
         name=plan or None,
         description=None,
-        type_unit=tipo_nivel,
+        type_user=get_type_user(tipoEstudiante)
     )
 
 
@@ -600,6 +597,7 @@ def _get_school_from_row(
         name=facultad or None,
         description=None,
         general_code=general_code,
+        type_user=get_type_user(tipoEstudiante)
     ), isSpecialHeadquarters
 
 

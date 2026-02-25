@@ -554,7 +554,6 @@ def _get_unit_from_row(row: Tuple[Cell, ...]) -> UnitUnalInput:
     elif sede == FunSedeEnum.NACIONAL.file_name:
         prefix_sede = sede.split(" ")[1][:3].lower()
 
-
     cod_unit: str = get_value_from_row(row, EstudianteActivos.COD_PLAN.value)
     plan: str = get_value_from_row(row, EstudianteActivos.PLAN.value)
     tipo_nivel: str = get_value_from_row(
@@ -567,7 +566,7 @@ def _get_unit_from_row(row: Tuple[Cell, ...]) -> UnitUnalInput:
         email=email,
         name=plan or None,
         description=None,
-        type_unit=tipo_nivel or None,
+        type_user=tipo_nivel or None,
     )
 
 
