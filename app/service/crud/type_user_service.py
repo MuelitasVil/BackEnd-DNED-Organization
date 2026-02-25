@@ -35,3 +35,16 @@ class TypeUserService:
     @staticmethod
     def delete(type_user_name: str, session: Session) -> bool:
         return TypeUserRepository(session).delete(type_user_name)
+
+    @staticmethod
+    def bulk_insert_ignore(users: List[TypeUserInput], session: Session):
+        """
+        Inserta en bulk tipos de usuario.
+        Si hay duplicados en name, MySQL los ignora.
+        """
+        user_models = [
+            TypeUser(**u.model_dump(exclude_unset=True))
+            for u in users
+        ]
+        TypeUserRepository(session).bulk_insert_ignore(user_models)
+        return {"inserted": len(users), "duplicates_ignored": True}

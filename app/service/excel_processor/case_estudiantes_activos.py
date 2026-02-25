@@ -9,7 +9,15 @@ from app.domain.dtos.school_headquarters_associate.school_headquarters_associate
     SchoolHeadquartersAssociateInput,
 )
 
-from app.domain.dtos.unit_school_associate.unit_school_associate_input import ( 
+from app.domain.dtos.type_user.type_user_input import (
+    TypeUserInput
+)
+
+from app.domain.dtos.type_user_association.type_user_association_input import (
+    TypeUserAssociationInput
+)
+
+from app.domain.dtos.unit_school_associate.unit_school_associate_input import (
     UnitSchoolAssociateInput,
 )
 
@@ -19,6 +27,14 @@ from app.domain.dtos.user_unit_associate.user_unit_associate_input import (
 
 from app.service.crud.school_headquarters_associate_service import (
     SchoolHeadquartersAssociateService
+)
+
+from app.service.crud.type_user_association_service import (
+    TypeUserAssociationService
+)
+
+from app.service.crud.type_user_service import (
+    TypeUserService
 )
 
 from app.service.crud.unit_school_associate_service import (
@@ -77,6 +93,8 @@ class Collections:
     user_unit_assocs: List[UserUnitAssociateInput]
     unit_school_assocs: List[UnitSchoolAssociateInput]
     school_headquarters_assocs: List[SchoolHeadquartersAssociateInput]
+    user_types: List[TypeUserInput]
+    type_user_unit_assocs: List[TypeUserAssociationInput]
 
 
 @dataclass
@@ -85,10 +103,12 @@ class Seen:
     units: Set[str]
     schools: Set[str]
     headquarters: Set[str]
-    user_unit_assocs: Set[Tuple[str, str, str]]
-    unit_school_assocs: Set[Tuple[str, str, str]]
-    school_headquarters_assocs: Set[Tuple[str, str, str]]
+    user_unit_assocs: Set[str]
+    unit_school_assocs: Set[str]
+    school_headquarters_assocs: Set[str]
     unit_with_school: Set[str]
+    type_user_assocs: Set[str]
+    type_user_unit_assocs: Set[str]
 
 
 def case_estudiantes_activos(
@@ -163,6 +183,14 @@ def _persist_collections(c: Collections, session: Session) -> Dict[str, Any]:
             c.school_headquarters_assocs,
             session
         )
+        resTypeUser = TypeUserService.bulk_insert_ignore(
+            c.user_types,
+            session
+        )
+        resTypeUserUnitAssocs = TypeUserAssociationService.bulk_insert_ignore(
+            c.type_user_unit_assocs,
+            session
+        )
 
         return {
             "users": resUsers,
@@ -171,7 +199,9 @@ def _persist_collections(c: Collections, session: Session) -> Dict[str, Any]:
             "headquarters": resHeadquarters,
             "user_unit": resUserUnitAssocs,
             "unit_school": resUnitSchoolAssocs,
-            "school_headquarters": resSchoolHeadquartersAssocs
+            "school_headquarters": resSchoolHeadquartersAssocs,
+            "type_user": resTypeUser,
+            "type_user_unit": resTypeUserUnitAssocs
         }
 
     except Exception as e:
@@ -216,6 +246,9 @@ def _excel_processing(
         user: UserUnalInput = _get_user_from_row(row_tuple)
         _add_user_to_collections(user, seen, collections)
 
+        type_user: TypeUserInput = __get_type_user_from_row(row_tuple)
+        _add_type_user_to_collections(type_user, seen, collections)
+
         unit: UnitUnalInput = _get_unit_from_row(row_tuple)
         _add_unit_to_collections(unit, seen, collections)
 
@@ -225,6 +258,7 @@ def _excel_processing(
 
         head: HeadquartersInput = _get_headquarters_from_row(row_tuple)
         _add_headquarters_to_collections(head, seen, collections)
+
         _add_user_unit_assoc_to_collections(
             user,
             unit,
@@ -245,6 +279,14 @@ def _excel_processing(
         _add_school_headquarters_to_collections(
             school,
             head,
+            cod_period,
+            seen,
+            collections
+        )
+
+        _add_user_type_assoc_to_collections(
+            user,
+            type_user,
             cod_period,
             seen,
             collections
@@ -421,6 +463,47 @@ def _add_school_headquarters_to_collections(
     )
 
 
+def _add_type_user_to_collections(
+    type_user: TypeUserInput,
+    seen: Seen,
+    collections: Collections
+) -> None:
+    if not type_user.name:
+        return
+
+    if not is_unique_entity_in_set(
+        seen.type_user_assocs, type_user.name
+    ):
+        return
+
+    seen.type_user_assocs.add(type_user.name)
+    collections.user_types.append(type_user)
+
+
+def _add_user_type_assoc_to_collections(
+    user: UserUnalInput,
+    type_user: TypeUserInput,
+    cod_period: str,
+    seen: Seen,
+    collections: Collections
+) -> None:
+    if not user.email_unal or not type_user.name:
+        return
+
+    assoc_key = f"{user.email_unal}{type_user.name}{cod_period}"
+    if assoc_key in seen.type_user_unit_assocs:
+        return
+
+    seen.type_user_unit_assocs.add(assoc_key)
+    collections.type_user_unit_assocs.append(
+        TypeUserAssociationInput(
+            email_unal=user.email_unal,
+            type_user_id=type_user.name,
+            cod_period=cod_period
+        )
+    )
+
+
 def _get_user_from_row(row: Tuple[Cell, ...]) -> UserUnalInput:
     return UserUnalInput(
         email_unal=(
@@ -541,6 +624,24 @@ def _get_headquarters_from_row(row: Tuple[Cell, ...]) -> HeadquartersInput:
         name=sede,
         description=None,
         type_facultad=type_facultad,
+    )
+
+
+def __get_type_user_from_row(row: Tuple[Cell, ...]) -> TypeUserInput:
+    tipoEstudiante: str = get_value_from_row(
+        row, EstudianteActivos.TIPO_NIVEL.value
+    )
+
+    if tipoEstudiante == General_Values.PREGRADO.value:
+        tipoEstudiante = "pregrado"
+    elif tipoEstudiante == General_Values.POSGRADO.value:
+        tipoEstudiante = "posgrado"
+
+    name: str = f"Estudiante {tipoEstudiante.capitalize()}"
+
+    return TypeUserInput(
+        name=name,
+        description=None
     )
 
 

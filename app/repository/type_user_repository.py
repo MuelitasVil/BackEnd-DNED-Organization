@@ -1,4 +1,4 @@
-from sqlmodel import Session, select
+from sqlmodel import Session, insert, select
 from typing import List, Optional
 
 from app.domain.models.type_user import TypeUser
@@ -50,3 +50,15 @@ class TypeUserRepository:
             self.session.commit()
             return True
         return False
+    
+    def bulk_insert_ignore(self, type_users: List[TypeUser]):
+        """
+        Inserta múltiples tipos de usuario en la tabla.
+        Si encuentra PK duplicada (name), ignora ese registro.
+        """
+        stmt = insert(TypeUser).values(
+            [u.model_dump() for u in type_users]
+        )
+        stmt = stmt.prefix_with("IGNORE")
+        self.session.exec(stmt)
+        self.session.commit()
