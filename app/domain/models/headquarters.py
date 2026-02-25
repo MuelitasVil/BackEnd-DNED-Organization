@@ -9,4 +9,5 @@ class Headquarters(SQLModel, table=True):
     email: Optional[str] = Field(default=None, max_length=100)
     name: Optional[str] = Field(default=None, max_length=100)
     description: Optional[str] = None
-    type_facultad: Optional[str] = Field(default=None, max_length=50)
+    general_code: Optional[str] = Field(default=None, max_length=50)
+    type_user: Optional[str] = Field(default=None, max_length=100)

@@ -1,17 +1,13 @@
 from enum import Enum
 from typing import List
 
-from app.domain.enums.files.files_enum_utils import (
+from app.utils.string_utils import (
     normalize_header
 )
 
-SPECIAL_SEDES = {
-    "SEDE AMAZONÍA",
-    "SEDE CARIBE",
-    "SEDE ORINOQUÍA",
-    "SEDE TUMACO",
-    "SEDE DE LA PAZ",
-}
+from app.domain.enums.global_sedes_enum import (
+    SPECIAL_SEDES
+)
 
 
 class EstActSedeEnum(Enum):
@@ -45,18 +41,18 @@ class EstActSedeEnum(Enum):
         return False
 
     @classmethod
-    def is_special_sede(cls, sede: str) -> bool:
-        return sede in cls.SPECIAL_SEDES
+    def is_special_sede(self, sede: str) -> bool:
+        return sede in SPECIAL_SEDES
 
     @classmethod
-    def get_by_name(cls, name: str):
+    def get_by_name(self, name: str):
         """
         Obtiene un miembro del Enum a partir del nombre de la sede.
         :param name: El nombre de la sede (como cadena, e.g., "SEDE BOGOTÁ").
         :return: El miembro correspondiente del Enum.
         """
         sede_value = name.strip().upper()
-        for member in cls:
+        for member in self:
             if member._name == sede_value:
                 return member
         return None
@@ -72,7 +68,7 @@ class EstudianteActivos(Enum):
     TIPO_NIVEL = 7
 
     @classmethod
-    def validate_headers(cls, headers: List[str]) -> bool:
+    def validate_headers(self, headers: List[str]) -> bool:
         """
         Verifica si todos los encabezados en `headers` están en el Enum.
         No requiere que estén en orden, pero sí que estén todos presentes.
@@ -81,5 +77,5 @@ class EstudianteActivos(Enum):
         # mayúsculas/minúsculas/espacios
 
         normalized_headers = {normalize_header(h) for h in headers if h}
-        enum_headers = {e.name for e in cls}
+        enum_headers = {e.name for e in self}
         return enum_headers.issubset(normalized_headers)

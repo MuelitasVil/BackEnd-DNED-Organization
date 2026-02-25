@@ -1,7 +1,6 @@
 from enum import Enum
 
 
-# Definir el mapeo de sedes y su orden
 class OrgType(Enum):
     GLOBAL = "GLOBAL"
     HEADQUARTERS = "HEADQUARTERS"

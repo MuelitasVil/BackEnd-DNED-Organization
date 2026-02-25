@@ -96,7 +96,8 @@ CREATE TABLE IF NOT EXISTS school (
     email        VARCHAR(100) NULL,
     name         VARCHAR(100) NOT NULL,
     description  TEXT         NULL,
-    type_facultad VARCHAR(50) NULL
+    general_code VARCHAR(50) NULL,
+    type_user    VARCHAR(100) NULL
 ) ENGINE=InnoDB;
 
 -- Tabla: unit_school_associate  (PK compuesta)
@@ -118,7 +119,8 @@ CREATE TABLE IF NOT EXISTS headquarters (
     email            VARCHAR(100) NULL,
     name             VARCHAR(100) NOT NULL,
     description      TEXT         NULL,
-    type_facultad    VARCHAR(50)  NULL
+    general_code    VARCHAR(50)  NULL,
+    type_user    VARCHAR(100) NULL
 ) ENGINE=InnoDB;
 
 -- Tabla: school_headquarters_associate  (PK compuesta)

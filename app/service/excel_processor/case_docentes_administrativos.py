@@ -25,6 +25,7 @@ from app.domain.dtos.user_unit_associate.user_unit_associate_input import (
     UserUnitAssociateInput,
 )
 
+from app.domain.enums.files.funcionarios_activos_enum import FunSedeEnum, FuncionariosActivos
 from app.service.crud.school_headquarters_associate_service import (
     SchoolHeadquartersAssociateService
 )
@@ -50,7 +51,6 @@ from app.service.excel_processor.utils.collection_utils import (
 )
 
 from app.service.excel_processor.utils.error_utils import (
-    add_invalid_headquarters_error,
     raise_if_errors
 )
 
@@ -148,12 +148,8 @@ def case_estudiantes_activos(
         user_types=set()
     )
 
-    sorted_rows = _sort_rows_by_sede(
-        ws,
-        errors
-    )
     _excel_processing(
-        sorted_rows,
+        ws,
         collections,
         seen,
         cod_period,
@@ -163,6 +159,92 @@ def case_estudiantes_activos(
     # defult not log persist results.
     log_persist_results(results)
     return build_summary(collections)
+
+
+def _excel_processing(
+    ws: Worksheet,
+    collections: Collections,
+    seen: Seen,
+    cod_period: str,
+    errors: List[Dict[str, Any]] = [],
+) -> None:
+    """
+    Función principal para procesar las filas del archivo Excel.
+     - rows: Lista de tuplas con el índice de fila y el contenido de la fila.
+    """
+    logger.info(
+        "Iniciando procesamiento de archivo de docentes administrativos"
+    )
+    for row_idx, row in enumerate(ws.iter_rows(), start=1):
+
+        if is_header_row(row_idx):
+            continue
+
+        blank_or_incomplete_errors = validate_row_blank_or_incomplete(
+            row,
+            row_idx,
+            errors,
+            FuncionariosActivos
+        )
+
+        if blank_or_incomplete_errors:
+            errors.extend(blank_or_incomplete_errors)
+            continue
+
+        isSpecialHeadquarters: bool = False
+        logger.debug(f"Procesando fila {row_idx}")
+        logger.debug(f"Contenido de la fila: {[cell.value for cell in row]}")
+
+        row_tuple: Tuple[Cell, ...] = row
+        user: UserUnalInput = _get_user_from_row(row_tuple)
+        _add_user_to_collections(user, seen, collections)
+
+        type_user: TypeUserInput = __get_type_user_from_row(row_tuple)
+        _add_type_user_to_collections(type_user, seen, collections)
+
+        unit: UnitUnalInput = _get_unit_from_row(row_tuple)
+        _add_unit_to_collections(unit, seen, collections)
+
+        school: SchoolInput
+        school, isSpecialHeadquarters = _get_school_from_row(row_tuple)
+        _add_school_to_collections(school, seen, collections)
+
+        head: HeadquartersInput = _get_headquarters_from_row(row_tuple)
+        _add_headquarters_to_collections(head, seen, collections)
+
+        _add_user_unit_assoc_to_collections(
+            user,
+            unit,
+            cod_period,
+            seen,
+            collections
+        )
+
+        _add_unit_school_assoc_to_collections(
+            unit,
+            school,
+            cod_period,
+            seen,
+            collections,
+            isSpecialHeadquarters
+        )
+
+        _add_school_headquarters_to_collections(
+            school,
+            head,
+            cod_period,
+            seen,
+            collections
+        )
+
+        _add_user_type_assoc_to_collections(
+            user,
+            type_user,
+            cod_period,
+            seen,
+            collections
+        )
+    raise_if_errors(errors)
 
 
 def _persist_collections(c: Collections, session: Session) -> Dict[str, Any]:
@@ -226,74 +308,6 @@ def log_persist_results(
     logger.info("Inserciones completadas.")
     for k, v in results.items():
         logger.info(f"Resultado {k}: {v}")
-
-
-def _excel_processing(
-    sorted_rows: List[Tuple[int, Tuple[Cell, ...]]],
-    collections: Collections,
-    seen: Seen,
-    cod_period: str,
-    errors: List[Dict[str, Any]] = [],
-) -> None:
-    """
-    Función principal para procesar las filas del archivo Excel.
-     - rows: Lista de tuplas con el índice de fila y el contenido de la fila.
-    """
-    logger.info("Iniciando procesamiento de archivo de estudiantes activos")
-    for row_idx, row in sorted_rows:
-        isSpecialHeadquarters: bool = False
-        logger.debug(f"Procesando fila {row_idx}")
-        logger.debug(f"Contenido de la fila: {[cell.value for cell in row]}")
-
-        row_tuple: Tuple[Cell, ...] = row
-        user: UserUnalInput = _get_user_from_row(row_tuple)
-        _add_user_to_collections(user, seen, collections)
-
-        type_user: TypeUserInput = __get_type_user_from_row(row_tuple)
-        _add_type_user_to_collections(type_user, seen, collections)
-
-        unit: UnitUnalInput = _get_unit_from_row(row_tuple)
-        _add_unit_to_collections(unit, seen, collections)
-
-        school: SchoolInput
-        school, isSpecialHeadquarters = _get_school_from_row(row_tuple)
-        _add_school_to_collections(school, seen, collections)
-
-        head: HeadquartersInput = _get_headquarters_from_row(row_tuple)
-        _add_headquarters_to_collections(head, seen, collections)
-
-        _add_user_unit_assoc_to_collections(
-            user,
-            unit,
-            cod_period,
-            seen,
-            collections
-        )
-
-        _add_unit_school_assoc_to_collections(
-            unit,
-            school,
-            cod_period,
-            seen,
-            collections,
-            isSpecialHeadquarters
-        )
-
-        _add_school_headquarters_to_collections(
-            school,
-            head,
-            cod_period,
-            seen,
-            collections
-        )
-
-        _add_user_type_assoc_to_collections(
-            user,
-            type_user,
-            cod_period,
-            seen,
-            collections
-        )
 
 
 def _add_user_to_collections(
@@ -510,52 +524,50 @@ def _add_user_type_assoc_to_collections(
 def _get_user_from_row(row: Tuple[Cell, ...]) -> UserUnalInput:
     return UserUnalInput(
         email_unal=(
-            get_value_from_row(row, EstudianteActivos.EMAIL.value) or None
+            get_value_from_row(row, FuncionariosActivos.EMAIL.value) or None
         ),
         document=None,
         name=None,
         lastname=None,
         full_name=(
             get_value_from_row(
-                row, EstudianteActivos.NOMBRES_APELLIDOS.value
+                row, FuncionariosActivos.NOMBRES_Y_APELLIDOS.value
             ) or None
         ),
         gender=None,
         birth_date=None,
         headquarters=get_value_from_row(
-            row, EstudianteActivos.SEDE.value
+            row, FuncionariosActivos.SEDE.value
         )
     )
 
 
 def _get_unit_from_row(row: Tuple[Cell, ...]) -> UnitUnalInput:
-    sede: str = get_value_from_row(row, EstudianteActivos.SEDE.value)
-    tipoEstudiante: str = get_value_from_row(
-        row, EstudianteActivos.TIPO_NIVEL.value
+    sede: str = get_value_from_row(row, FuncionariosActivos.SEDE.value)
+    tipoFuncionario: str = get_value_from_row(
+        row, FuncionariosActivos.NOMBRE_CARGO.value
     )
 
-    if tipoEstudiante == General_Values.PREGRADO.value:
-        tipoEstudiante = "pre"
-    elif tipoEstudiante == General_Values.POSGRADO.value:
-        tipoEstudiante = "pos"
+    prefix_sede: str = sede.split(" ")[0][:3].lower()
+    if sede == FunSedeEnum.SEDE_DE_LA_PAZ.file_name:
+        prefix_sede = sede.split(" ")[1][:3].lower()
+    elif sede == FunSedeEnum.NACIONAL.file_name:
+        prefix_sede = sede.split(" ")[1][:3].lower()
 
-    prefix_sede: str = sede.split(" ")[1][:3].lower()
-    if sede == EstActSedeEnum.SEDE_DE_LA_PAZ._name:
-        prefix_sede = sede.split(" ")[3][:3].lower()
 
     cod_unit: str = get_value_from_row(row, EstudianteActivos.COD_PLAN.value)
     plan: str = get_value_from_row(row, EstudianteActivos.PLAN.value)
     tipo_nivel: str = get_value_from_row(
         row, EstudianteActivos.TIPO_NIVEL.value
     )
-    cod_unit = f"{cod_unit}_{tipoEstudiante}_{prefix_sede}"
+    cod_unit = f"{cod_unit}_{prefix_sede}"
     email: str = f"{cod_unit}@unal.edu.co"
     return UnitUnalInput(
         cod_unit=cod_unit,
         email=email,
         name=plan or None,
         description=None,
-        type_unit=tipo_nivel,
+        type_unit=tipo_nivel or None,
     )
 
 
@@ -580,17 +592,15 @@ def _get_school_from_row(
         tipoEstudiante = "pos"
 
     cod_school: str = ""
-    general_code: str = ""
+
     if EstActSedeEnum.is_special_sede(sede):
         isSpecialHeadquarters = True
         cod_school = f"estf{tipoEstudiante}{prefix_sede}"
-        general_code = f"estf{prefix_sede}"
     else:
         acronimo = "".join(
             p[0].lower() for p in facultad.split() if len(p) > 2
         )
         cod_school = f"est{acronimo}{tipoEstudiante}_{prefix_sede}"
-        general_code = f"est{acronimo}_{prefix_sede}"
 
     email: str = f"{cod_school}@unal.edu.co"
 
@@ -599,13 +609,11 @@ def _get_school_from_row(
         email=email,
         name=facultad or None,
         description=None,
-        general_code=general_code,
+        general_code=None,
     ), isSpecialHeadquarters
 
 
-def _get_headquarters_from_row(
-        row: Tuple[Cell, ...]
-) -> HeadquartersInput:
+def _get_headquarters_from_row(row: Tuple[Cell, ...]) -> HeadquartersInput:
     sede: str = get_value_from_row(row, EstudianteActivos.SEDE.value)
     tipoEstudiante: str = get_value_from_row(
         row, EstudianteActivos.TIPO_NIVEL.value
@@ -631,7 +639,6 @@ def _get_headquarters_from_row(
         name=sede,
         description=None,
         general_code=general_code,
-        type_user=get_type_user(tipoEstudiante)
     )
 
 
@@ -645,97 +652,12 @@ def __get_type_user_from_row(row: Tuple[Cell, ...]) -> TypeUserInput:
     elif tipoEstudiante == General_Values.POSGRADO.value:
         tipoEstudiante = "posgrado"
 
-    type_user: str = get_type_user(tipoEstudiante)
+    name: str = f"Estudiante {tipoEstudiante.capitalize()}"
 
     return TypeUserInput(
-        name=type_user,
+        name=name,
         description=None
     )
-
-
-def _sort_rows_by_sede(
-    ws: Worksheet,
-    errors: List[Dict[str, Any]]
-) -> List[Tuple[int, Tuple[Cell, ...]]]:
-    """
-    Organiza las filas del archivo Excel según la sede
-    {
-    1: [
-        (2, ('SEDE BOGOTÁ', 'ejemplo@bogota.com', 'Juan Pérez')),
-        (4, ('SEDE BOGOTÁ', 'ejemplo2@bogota.com', 'Luis García'))
-    ],
-    2: [
-        (3, ('SEDE MANIZALES', 'ejemplo@manizales.com', 'Ana Gómez'))
-    ],
-    3: [
-        (5, ('SEDE MEDELLÍN', 'ejemplo@medellin.com', 'María López'))
-    ]
-    }
-
-    :param ws: Worksheet del archivo de Excel.
-    :param errors: Lista de errores donde se agregarán los errores encontrados.
-    :return: Lista de filas organizadas por sede.
-    """
-
-    sort_sede_dict: Dict[int, List[Tuple[int, Tuple[Cell, ...]]]] = {
-        order.number: [] for order in EstActSedeEnum
-    }
-
-    logger.info(
-        "Start sort excel rows by headquarters"
-    )
-
-    for row_idx, row in enumerate(ws.iter_rows(), start=1):
-
-        if is_header_row(row_idx):
-            continue
-
-        blank_or_incomplete_errors = validate_row_blank_or_incomplete(
-            row,
-            row_idx,
-            errors,
-            EstudianteActivos
-        )
-
-        if blank_or_incomplete_errors:
-            errors.extend(blank_or_incomplete_errors)
-            continue
-
-        sede = get_value_from_row(row, EstudianteActivos.SEDE.value)
-        info_sede = EstActSedeEnum.get_by_name(sede)
-        if info_sede is None:
-            add_invalid_headquarters_error(
-                errors,
-                row_idx,
-                EstudianteActivos.SEDE.value,
-                sede
-            )
-            continue
-
-        sede_order = info_sede.number
-        sort_sede_dict[sede_order].append((row_idx, row))
-
-    sorted_rows = get_sort_rows_by_dict_sede(sort_sede_dict)
-    logger.info("Finalizando organizacion de archivo de estudiantes activos")
-    raise_if_errors(errors)
-    return sorted_rows
-
-
-def get_sort_rows_by_dict_sede(
-    sort_sede_dict: Dict[int, List[Tuple[int, Tuple[Cell, ...]]]]
-) -> List[Tuple[int, Tuple[Cell, ...]]]:
-    """
-    Ordenar las filas según el valor de SedeOrder (de menor a mayor)
-    Docstring for get_sort_rows_by_dict_sede
-
-    :param sort_sede_dict: Description
-    :type sort_sede_dict: Dict[int, List[Tuple[int, Tuple[Cell, ...]]]]
-    :return: Description
-    :rtype: List[Tuple[int, Tuple[Cell, ...]]]
-    """
-    sorted_rows = []
-    for order in sorted(sort_sede_dict.keys()):
-        sorted_rows.extend(sort_sede_dict[order])
 
 
 def build_summary(c: Collections) -> Dict[str, Any]:
@@ -749,11 +671,5 @@ def build_summary(c: Collections) -> Dict[str, Any]:
         "cant_unit_school_assocs": len(c.unit_school_assocs),
         "cant_school_head_assocs": len(c.school_headquarters_assocs),
         "cant_type_user": len(c.user_types),
-        "cant_type_user_unit_assocs": len(c.type_user_unit_assocs),
+        "cant_type_user_unit_assocs": len(c.type_user_unit_assocs)
     }
-
-
-def get_type_user(
-    tipoEstudiante: str
-) -> str:
-    return f"Estudiante {tipoEstudiante.capitalize()}"
