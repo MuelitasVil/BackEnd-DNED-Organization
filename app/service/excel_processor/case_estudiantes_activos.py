@@ -1,5 +1,6 @@
+from dataclasses import dataclass
+from http.client import HTTPException
 from typing import Dict, Any, List, Tuple, Set
-from fastapi import HTTPException
 from openpyxl.worksheet.worksheet import Worksheet
 from openpyxl.cell.cell import Cell
 from sqlmodel import Session
@@ -27,10 +28,22 @@ from app.service.crud.user_unit_associate_service import (
     UserUnitAssociateService,
 )
 
-from app.utils.excel_processing import (
+from app.service.excel_processor.utils.collection_utils import (
+    is_unique_entity_in_set
+)
+
+from app.service.excel_processor.utils.error_utils import (
+    add_invalid_headquarters_error,
+    fails_if_errors
+)
+
+
+from app.service.excel_processor.utils.excel_validator import (
     get_value_from_row,
-    is_blank,
-    )
+    is_header_row,
+    validate_row_blank_or_incomplete,
+)
+
 
 from app.domain.dtos.user_unal.user_unal_input import UserUnalInput
 from app.domain.dtos.unit_unal.unit_unal_input import UnitUnalInput
@@ -40,7 +53,7 @@ from app.domain.dtos.headquarters.headquarters_input import HeadquartersInput
 from app.domain.enums.files.general import General_Values
 from app.domain.enums.files.estudiante_activos import (
     EstudianteActivos,
-    SedeEnum
+    EstActSedeEnum
 )
 
 from app.service.crud.user_unal_service import UserUnalService
@@ -54,7 +67,29 @@ logger = AppLogger(__file__)
 logger2 = AppLogger(__file__, "user_unit_association.log")
 
 
-# --------- validación principal y armado de colecciones ---------
+@dataclass
+class Collections:
+    users: List[UserUnalInput]
+    units: List[UnitUnalInput]
+    schools: List[SchoolInput]
+    headquarters: List[HeadquartersInput]
+    user_unit_assocs: List[UserUnitAssociateInput]
+    unit_school_assocs: List[UnitSchoolAssociateInput]
+    school_headquarters_assocs: List[SchoolHeadquartersAssociateInput]
+
+
+@dataclass
+class Seen:
+    users: Set[str]
+    units: Set[str]
+    schools: Set[str]
+    headquarters: Set[str]
+    user_unit_assocs: Set[Tuple[str, str, str]]
+    unit_school_assocs: Set[Tuple[str, str, str]]
+    school_headquarters_assocs: Set[Tuple[str, str, str]]
+    unit_with_school: Set[str]
+
+
 def case_estudiantes_activos(
     ws: Worksheet,
     cod_period: str,
@@ -66,245 +101,322 @@ def case_estudiantes_activos(
     - Devuelve resumen: status, errores, conteos y previews.
     """
     errors: List[Dict[str, Any]] = []
-    users: List[UserUnalInput] = []
-    units: List[UnitUnalInput] = []
-    schools: List[SchoolInput] = []
-    headquarters: List[HeadquartersInput] = []
-    userUnitAssocs: List[UserUnitAssociateInput] = []
-    unitSchoolAssocs: List[UnitSchoolAssociateInput] = []
-    schoolHeadquartersAssocs: List[SchoolHeadquartersAssociateInput] = []
 
-    seen_units: Set[str] = set()
-    seen_schools: Set[str] = set()
-    seen_heads: Set[str] = set()
-    seen_users: Set[str] = set()
-    seen_user_unit_assocs: Set[str] = set()
-    seen_unit_school_assocs: Set[str] = set()
-    seen_school_head_assocs: Set[str] = set()
-    unit_with_school_log: Set[str] = set()
+    collections = Collections(
+        users=[],
+        units=[],
+        schools=[],
+        headquarters=[],
+        user_unit_assocs=[],
+        unit_school_assocs=[],
+        school_headquarters_assocs=[]
+    )
 
-    sorted_rows = organize_rows_by_sede(ws, errors)
+    seen = Seen(
+        users=set(),
+        units=set(),
+        schools=set(),
+        headquarters=set(),
+        user_unit_assocs=set(),
+        unit_school_assocs=set(),
+        school_headquarters_assocs=set(),
+        unit_with_school=set()
+    )
 
-    if errors:
-        raise HTTPException(status_code=400, detail={
+    sorted_rows = _sort_rows_by_sede(ws, errors)
+    _excel_processing(
+        sorted_rows,
+        collections,
+        seen,
+        cod_period,
+        errors,
+    )
+    results = _persist_collections(collections, session)
+    # defult not log persist results.
+    log_persist_results(results)
+    return build_summary(collections)
+
+
+def _persist_collections(c: Collections, session: Session) -> Dict[str, Any]:
+    try:
+        resUsers = UserUnalService.bulk_insert_ignore(c.users, session)
+        resUnits = UnitUnalService.bulk_insert_ignore(c.units, session)
+        resSchools = SchoolService.bulk_insert_ignore(c.schools, session)
+        resHeadquarters = HeadquartersService.bulk_insert_ignore(
+            c.headquarters,
+            session
+        )
+        resUserUnitAssocs = UserUnitAssociateService.bulk_insert_ignore(
+            c.user_unit_assocs,
+            session
+        )
+        resUnitSchoolAssocs = UnitSchoolAssociateService.bulk_insert_ignore(
+            c.unit_school_assocs,
+            session
+        )
+        resSchoolHeadquartersAssocs = SchoolHeadquartersAssociateService.bulk_insert_ignore(  # noqa: E501 ignora error flake8
+            c.school_headquarters_assocs,
+            session
+        )
+
+        return {
+            "users": resUsers,
+            "units": resUnits,
+            "schools": resSchools,
+            "headquarters": resHeadquarters,
+            "user_unit": resUserUnitAssocs,
+            "unit_school": resUnitSchoolAssocs,
+            "school_headquarters": resSchoolHeadquartersAssocs
+        }
+
+    except Exception as e:
+        logger.error(f"Error durante el proceso de inserción: {str(e)}")
+        logger.error(f"Detalles del error: {e}")
+        raise HTTPException(status_code=500, detail={
             "status": False,
-            "errors": errors[0:10]
+            "message": "Error interno durante la inserción de datos."
         })
 
-    logger.info("Iniciando procesamiento de archivo de estudiantes activos")
 
+def log_persist_results(
+        results: Dict[str, Any],
+        debug: bool = False
+) -> None:
+    if not debug:
+        return
+
+    logger.info("Inserciones completadas.")
+    for k, v in results.items():
+        logger.info(f"Resultado {k}: {v}")
+
+
+def _excel_processing(
+    sorted_rows: List[Tuple[int, Tuple[Cell, ...]]],
+    collections: Collections,
+    seen: Seen,
+    cod_period: str,
+    errors: List[Dict[str, Any]] = [],
+) -> None:
+    """
+    Función principal para procesar las filas del archivo Excel.
+     - rows: Lista de tuplas con el índice de fila y el contenido de la fila.
+    """
+    logger.info("Iniciando procesamiento de archivo de estudiantes activos")
     for row_idx, row in sorted_rows:
         isSpecialHeadquarters: bool = False
         logger.debug(f"Procesando fila {row_idx}")
         logger.debug(f"Contenido de la fila: {[cell.value for cell in row]}")
 
-        if row_idx == 1:
-            continue
-
-        if is_row_blank(row):
-            errors.append({
-                "row": row_idx,
-                "column": None,
-                "message": "Fila completamente vacía"
-            })
-            continue
-
-        errors.extend(get_blank_cell_errors(row, row_idx))
-
         row_tuple: Tuple[Cell, ...] = row
-        user: UserUnalInput = get_user_from_row(row_tuple)
-        if user.email_unal and user.email_unal not in seen_users:
-            users.append(user)
-            seen_users.add(user.email_unal)
-            logger.debug(f"Usuario agregado: {user}")
-        else:
-            logger.warning(f"Usuario duplicado encontrado: {user.email_unal}")
+        user: UserUnalInput = _get_user_from_row(row_tuple)
+        _add_user_to_collections(user, seen, collections)
 
-        unit: UnitUnalInput = get_unit_from_row(row_tuple)
-        if unit.cod_unit and unit.cod_unit not in seen_units:
-            units.append(unit)
-            seen_units.add(unit.cod_unit)
-            logger.debug(f"Plan agregada: {unit}")
-        else:
-            logger.warning(f"Plan duplicada encontrada: {unit.cod_unit}")
+        unit: UnitUnalInput = _get_unit_from_row(row_tuple)
+        _add_unit_to_collections(unit, seen, collections)
 
         school: SchoolInput
-        school, isSpecialHeadquarters = get_school_from_row(row_tuple)
-        if school.cod_school and school.cod_school not in seen_schools:
-            schools.append(school)
-            seen_schools.add(school.cod_school)
-            logger.debug(f"Facultad agregada: {school}")
-        else:
-            logger.warning(
-                f"Facultad duplicada encontrada: {school.cod_school}"
-            )
+        school, isSpecialHeadquarters = _get_school_from_row(row_tuple)
+        _add_school_to_collections(school, seen, collections)
 
-        head: HeadquartersInput = get_headquarters_from_row(row_tuple)
-        if head.cod_headquarters and head.cod_headquarters not in seen_heads:
-            headquarters.append(head)
-            seen_heads.add(head.cod_headquarters)
-            logger.debug(
-                f"Sede administrativa agregada: {head}"
-            )
-        else:
-            logger.warning(
-                f"Sede administrativa duplicada encontrada: "
-                f"{head.cod_headquarters}"
-            )
+        head: HeadquartersInput = _get_headquarters_from_row(row_tuple)
+        _add_headquarters_to_collections(head, seen, collections)
+        _add_user_unit_assoc_to_collections(
+            user,
+            unit,
+            cod_period,
+            seen,
+            collections
+        )
 
-        userUnitAssoc: UserUnitAssociateInput = UserUnitAssociateInput(
+        _add_unit_school_assoc_to_collections(
+            unit,
+            school,
+            cod_period,
+            seen,
+            collections,
+            isSpecialHeadquarters
+        )
+
+        _add_school_headquarters_to_collections(
+            school,
+            head,
+            cod_period,
+            seen,
+            collections
+        )
+
+
+def _add_user_to_collections(
+    user: UserUnalInput,
+    seen: Seen,
+    collections: Collections
+) -> None:
+    if not user.email_unal:
+        return
+
+    if not is_unique_entity_in_set(seen.users(), user.email_unal):
+        return
+
+    seen.users.add(user.email_unal)
+    collections.users.append(user)
+
+
+def _add_unit_to_collections(
+    unit: UnitUnalInput,
+    seen: Seen,
+    collections: Collections
+) -> None:
+    if not unit.cod_unit:
+        return
+
+    if not is_unique_entity_in_set(seen.units(), unit.cod_unit):
+        return
+
+    seen.units.add(unit.cod_unit)
+    collections.units.append(unit)
+
+
+def _add_school_to_collections(
+    school: SchoolInput,
+    seen: Seen,
+    collections: Collections
+) -> None:
+    if not school.cod_school:
+        return
+
+    if not is_unique_entity_in_set(seen.schools(), school.cod_school):
+        return
+
+    seen.schools.add(school.cod_school)
+    collections.schools.append(school)
+
+
+def _add_headquarters_to_collections(
+    head: HeadquartersInput,
+    seen: Seen,
+    collections: Collections
+) -> None:
+    if not head.cod_headquarters:
+        return
+
+    if not is_unique_entity_in_set(
+        seen.headquarters(), head.cod_headquarters
+    ):
+        return
+
+    seen.headquarters.add(head.cod_headquarters)
+    collections.headquarters.append(head)
+
+
+def _add_user_unit_assoc_to_collections(
+    user: UserUnalInput,
+    unit: UnitUnalInput,
+    cod_period: str,
+    seen: Seen,
+    collections: Collections
+) -> None:
+    if not user.email_unal or not unit.cod_unit:
+        return
+
+    assoc_key = f"{user.email_unal}{unit.cod_unit}{cod_period}"
+    if assoc_key in seen.user_unit_assocs:
+        return
+
+    logger.info(
+        f"Agregando asociación de usuario a plan: "
+        f"{user.email_unal} -> {unit.cod_unit} para periodo {cod_period}"
+    )
+
+    seen.user_unit_assocs.add(assoc_key)
+    collections.user_unit_assocs.append(
+        UserUnitAssociateInput(
             email_unal=user.email_unal,
             cod_unit=unit.cod_unit,
             cod_period=cod_period
         )
-        if (
-            f"{user.email_unal}{unit.cod_unit}{cod_period}"
-            not in seen_user_unit_assocs
-        ):
-            seen_user_unit_assocs.add(
-                f"{user.email_unal}{unit.cod_unit}{cod_period}"
-            )
-            userUnitAssocs.append(userUnitAssoc)
-            logger.debug(
-                f"Asociación de usuario a plan agregada: "
-                f"{userUnitAssoc}"
-            )
-        else:
-            logger.warning(
-                f"Asociación de usuario a plan duplicada encontrada: "
-                f"{user.email_unal}, {unit.cod_unit}, {cod_period}"
-            )
+    )
 
-        logger2.debug(f"Asociación de usuario a plan: {userUnitAssoc}")
 
-        unitSchoolAssoc = UnitSchoolAssociateInput(
+def _add_unit_school_assoc_to_collections(
+    unit: UnitUnalInput,
+    school: SchoolInput,
+    cod_period: str,
+    seen: Seen,
+    collections: Collections,
+    isSpecialHeadquarters: bool
+) -> None:
+    """
+    Importante: Los estudiantes de las sedes de presencia nacional
+    sus facultades perteneces a sedes mas grades es decir:
+    - Sede Bogotá
+    - Sede Medellín
+    - Sede Manizales
+    etc.
+
+    Por lo tanto, si detectamos que una sede es de presencia nacional,
+    no agregamos la asociación del plan a la facultad para evitar duplicados
+    en la tabla de asociación plan-facultad, ya que estos planes estarán
+    asociados a la sede más grande.
+    """
+
+    if not school.cod_school or not unit.cod_unit:
+        return
+
+    if isSpecialHeadquarters:
+        logger.debug(
+            "Sede de presencia nacional detectada"
+        )
+
+    if isSpecialHeadquarters and unit.cod_unit in seen.unit_with_school:
+        logger.debug(
+            f"El plan {unit.cod_unit} esta asociado a una sede mas grande"
+            f"de sede {school.cod_school}, por lo que no se agregará la "
+            f"asociación a colecciones para evitar duplicados."
+        )
+        return
+
+    assoc_key = f"{unit.cod_unit}{school.cod_school}{cod_period}"
+    if assoc_key in seen.unit_school_assocs:
+        return
+
+    seen.unit_school_assocs.add(assoc_key)
+    collections.unit_school_assocs.append(
+        UnitSchoolAssociateInput(
             cod_unit=unit.cod_unit,
             cod_school=school.cod_school,
             cod_period=cod_period
         )
-        logger.debug(
-            f"Es una sede de presencia nacional: {isSpecialHeadquarters}"
-        )
-        logger.debug(f"Plan: {unit.cod_unit}, Facultad: {school.cod_school}")
-        logger.debug(f"unit with school: {unit_with_school_log}")
-        if isSpecialHeadquarters and unit.cod_unit in unit_with_school_log:
-            logger.debug(
-                f"La plan {unit.cod_unit} pertenece a una facultad especial "
-                f"de sede {school.cod_school}"
-            )
-        elif (
-            f"{unit.cod_unit}{school.cod_school}{cod_period}"
-            not in seen_unit_school_assocs
-        ):
-            seen_unit_school_assocs.add(
-                f"{unit.cod_unit}{school.cod_school}{cod_period}"
-            )
-            unitSchoolAssocs.append(unitSchoolAssoc)
-            unit_with_school_log.add(unit.cod_unit)
+    )
 
-            logger.debug(
-                f"Asociación de plan a facultad agregada: "
-                f"{unitSchoolAssoc}"
-            )
-        else:
-            logger.warning(
-                "Asociación de plan a facultad duplicada encontrada: "
-                f"{unitSchoolAssoc.cod_period} "
-                f"{unitSchoolAssoc.cod_unit} "
-                f"{unitSchoolAssoc.cod_school}"
-            )
 
-        schoolHeadAssoc = SchoolHeadquartersAssociateInput(
+def _add_school_headquarters_to_collections(
+    school: SchoolInput,
+    headquarters: HeadquartersInput,
+    cod_period: str,
+    seen: Seen,
+    collections: Collections
+) -> None:
+    if not school.cod_school or not headquarters.cod_headquarters:
+        return
+
+    assoc_key = (
+        f"{school.cod_school}{headquarters.cod_headquarters}{cod_period}"
+    )
+
+    if assoc_key in seen.school_headquarters_assocs:
+        return
+
+    seen.school_headquarters_assocs.add(assoc_key)
+    collections.school_headquarters_assocs.append(
+        SchoolHeadquartersAssociateInput(
             cod_school=school.cod_school,
-            cod_headquarters=head.cod_headquarters,
+            cod_headquarters=headquarters.cod_headquarters,
             cod_period=cod_period
         )
-        if (
-            f"{school.cod_school}{head.cod_headquarters}{cod_period}"
-            not in seen_school_head_assocs
-        ):
-            seen_school_head_assocs.add(
-                f"{school.cod_school}{head.cod_headquarters}{cod_period}"
-            )
-            schoolHeadquartersAssocs.append(schoolHeadAssoc)
-            logger.debug(
-                f"Asociación de facultad a sede agregada: "
-                f"{schoolHeadAssoc}"
-            )
-        else:
-            logger.warning(
-                f"Asociación de facultad a sede duplicada encontrada: "
-                f"{schoolHeadAssoc.cod_school}, "
-                f"{schoolHeadAssoc.cod_headquarters}, "
-                f"{schoolHeadAssoc.cod_period}"
-            )
-
-    if errors:
-        raise HTTPException(status_code=400, detail={
-            "status": False,
-            "errors": errors[0:10]
-        })
-
-    try:
-        logger.info("Validación completada sin errores.")
-        logger.info("Resumiendo resultados e iniciando inserciones...")
-
-        resUsers = UserUnalService.bulk_insert_ignore(users, session)
-        resUnits = UnitUnalService.bulk_insert_ignore(units, session)
-        resSchools = SchoolService.bulk_insert_ignore(schools, session)
-        resHeadquarters = HeadquartersService.bulk_insert_ignore(
-            headquarters,
-            session
-        )
-        resUserUnitAssocs = UserUnitAssociateService.bulk_insert_ignore(
-            userUnitAssocs,
-            session
-        )
-        resUnitSchoolAssocs = UnitSchoolAssociateService.bulk_insert_ignore(
-            unitSchoolAssocs,
-            session
-        )
-        resSchoolHeadquartersAssocs = SchoolHeadquartersAssociateService.bulk_insert_ignore(  # noqa: E501 ignora error flake8
-            schoolHeadquartersAssocs,
-            session
-        )
-    except Exception as e:
-        logger.error(f"Error durante el proceso de inserción: {str(e)}")
-        logger.error(f"Detalles del error: {e}")
-
-    logger.info("Inserciones completadas exitosamente.")
-
-    logger.info(f"Resultados de inserción users: {resUsers}")
-    logger.info(f"Resultados de inserción units: {resUnits}")
-    logger.info(f"Resultados de inserción schools: {resSchools}")
-    logger.info(f"Resultados de inserción headquarters: {resHeadquarters}")
-    logger.info(
-        f"Resultados de inserción user_unit_assocs: {resUserUnitAssocs}"
-    )
-    logger.info(
-        f"Resultados de inserción unit_school_assocs: {resUnitSchoolAssocs}"
-    )
-    logger.info(
-        f"Resultados de inserción school_headquarters_assocs: "
-        f"{resSchoolHeadquartersAssocs}"
     )
 
-    for userUserAssoc in userUnitAssocs:
-        logger.info(f"Asociación de usuario a plan: {userUserAssoc}")
 
-    return {
-        "status": True,
-        "cant_users": len(users),
-        "cant_units": len(units),
-        "cant_schools": len(schools),
-        "cant_headquarters": len(headquarters),
-        "cant_user_unit_assocs": len(userUnitAssocs),
-        "cant_unit_school_assocs": len(unitSchoolAssocs),
-        "cant_school_head_assocs": len(schoolHeadquartersAssocs),
-    }
-
-
-def get_user_from_row(row: Tuple[Cell, ...]) -> UserUnalInput:
+def _get_user_from_row(row: Tuple[Cell, ...]) -> UserUnalInput:
     return UserUnalInput(
         email_unal=(
             get_value_from_row(row, EstudianteActivos.EMAIL.value) or None
@@ -325,7 +437,7 @@ def get_user_from_row(row: Tuple[Cell, ...]) -> UserUnalInput:
     )
 
 
-def get_unit_from_row(row: Tuple[Cell, ...]) -> UnitUnalInput:
+def _get_unit_from_row(row: Tuple[Cell, ...]) -> UnitUnalInput:
     sede: str = get_value_from_row(row, EstudianteActivos.SEDE.value)
     tipoEstudiante: str = get_value_from_row(
         row, EstudianteActivos.TIPO_NIVEL.value
@@ -337,7 +449,7 @@ def get_unit_from_row(row: Tuple[Cell, ...]) -> UnitUnalInput:
         tipoEstudiante = "pos"
 
     prefix_sede: str = sede.split(" ")[1][:3].lower()
-    if sede == SedeEnum.SEDE_DE_LA_PAZ._name:
+    if sede == EstActSedeEnum.SEDE_DE_LA_PAZ._name:
         prefix_sede = sede.split(" ")[3][:3].lower()
 
     cod_unit: str = get_value_from_row(row, EstudianteActivos.COD_PLAN.value)
@@ -356,7 +468,9 @@ def get_unit_from_row(row: Tuple[Cell, ...]) -> UnitUnalInput:
     )
 
 
-def get_school_from_row(row: Tuple[Cell, ...]) -> Tuple[SchoolInput, bool]:
+def _get_school_from_row(
+    row: Tuple[Cell, ...]
+) -> Tuple[SchoolInput, bool]:
     isSpecialHeadquarters: bool = False
     facultad: str = get_value_from_row(row, EstudianteActivos.FACULTAD.value)
     sede: str = get_value_from_row(row, EstudianteActivos.SEDE.value)
@@ -376,13 +490,7 @@ def get_school_from_row(row: Tuple[Cell, ...]) -> Tuple[SchoolInput, bool]:
 
     cod_school: str = ""
 
-    if (
-        sede == SedeEnum.SEDE_AMAZONIA._name or
-        sede == SedeEnum.SEDE_CARIBE._name or
-        sede == SedeEnum.SEDE_ORINOQUÍA._name or
-        sede == SedeEnum.SEDE_TUMACO._name or
-        sede == SedeEnum.SEDE_DE_LA_PAZ._name
-    ):  
+    if EstActSedeEnum.is_special_sede(sede):
         isSpecialHeadquarters = True
         cod_school = f"estf{tipoEstudiante}{prefix_sede}"
     else:
@@ -402,7 +510,7 @@ def get_school_from_row(row: Tuple[Cell, ...]) -> Tuple[SchoolInput, bool]:
     ), isSpecialHeadquarters
 
 
-def get_headquarters_from_row(row: Tuple[Cell, ...]) -> HeadquartersInput:
+def _get_headquarters_from_row(row: Tuple[Cell, ...]) -> HeadquartersInput:
     sede: str = get_value_from_row(row, EstudianteActivos.SEDE.value)
     tipoEstudiante: str = get_value_from_row(
         row, EstudianteActivos.TIPO_NIVEL.value
@@ -414,7 +522,7 @@ def get_headquarters_from_row(row: Tuple[Cell, ...]) -> HeadquartersInput:
         tipoEstudiante = "pos"
 
     prefix_sede: str = sede.split(" ")[1][:3].lower()
-    if sede == SedeEnum.SEDE_DE_LA_PAZ._name:
+    if sede == EstActSedeEnum.SEDE_DE_LA_PAZ._name:
         prefix_sede = sede.split(" ")[3][:3].lower()
 
     cod_sede: str = f"estudiante{tipoEstudiante}_{prefix_sede}"
@@ -431,62 +539,12 @@ def get_headquarters_from_row(row: Tuple[Cell, ...]) -> HeadquartersInput:
     )
 
 
-def is_row_blank(row: Tuple[Cell, ...]) -> bool:
-    """Retorna True si todas las columnas del Enum están vacías."""
-    cells = [
-        row[EstudianteActivos.NOMBRES_APELLIDOS.value - 1].value,
-        row[EstudianteActivos.EMAIL.value - 1].value,
-        row[EstudianteActivos.SEDE.value - 1].value,
-        row[EstudianteActivos.FACULTAD.value - 1].value,
-        row[EstudianteActivos.COD_PLAN.value - 1].value,
-        row[EstudianteActivos.PLAN.value - 1].value,
-        row[EstudianteActivos.TIPO_NIVEL.value - 1].value,
-    ]
-    return all(is_blank(v) for v in cells)
-
-
-def get_blank_cell_errors(
-    row: Tuple[Cell, ...], row_idx: int
-) -> List[Dict[str, Any]]:
-    """Retorna lista de errores por celdas vacías en la fila."""
-    col_names = [
-        "NOMBRES_APELLIDOS",
-        "EMAIL",
-        "SEDE",
-        "FACULTAD",
-        "COD_PLAN",
-        "PLAN",
-        "TIPO_NIVEL",
-    ]
-    cells = [
-        row[EstudianteActivos.NOMBRES_APELLIDOS.value - 1].value,
-        row[EstudianteActivos.EMAIL.value - 1].value,
-        row[EstudianteActivos.SEDE.value - 1].value,
-        row[EstudianteActivos.FACULTAD.value - 1].value,
-        row[EstudianteActivos.COD_PLAN.value - 1].value,
-        row[EstudianteActivos.PLAN.value - 1].value,
-        row[EstudianteActivos.TIPO_NIVEL.value - 1].value,
-    ]
-
-    errors: List[Dict[str, Any]] = []
-    for i, v in enumerate(cells):
-        if is_blank(v):
-            errors.append({
-                "row": row_idx,
-                "column": col_names[i],
-                "message": "Celda vacía"
-            })
-    return errors
-
-
-def organize_rows_by_sede(
+def _sort_rows_by_sede(
     ws: Worksheet,
     errors: List[Dict[str, Any]]
 ) -> List[Tuple[int, Tuple[Cell, ...]]]:
     """
-    Organiza las filas del archivo Excel según la sede,
-    validando que la sede sea válida.
-    
+    Organiza las filas del archivo Excel según la sede
     {
     1: [
         (2, ('SEDE BOGOTÁ', 'ejemplo@bogota.com', 'Juan Pérez')),
@@ -504,58 +562,76 @@ def organize_rows_by_sede(
     :param errors: Lista de errores donde se agregarán los errores encontrados.
     :return: Lista de filas organizadas por sede.
     """
-    # Diccionario para organizar las filas según la sede
-    sede_dict: Dict[int, List[Tuple[int, Tuple[Cell, ...]]]] = {
-        order.number: [] for order in SedeEnum
+
+    sort_sede_dict: Dict[int, List[Tuple[int, Tuple[Cell, ...]]]] = {
+        order.number: [] for order in EstActSedeEnum
     }
 
     logger.info(
-        "Iniciando organizacion archivo de "
-        "estudiantes activos"
+        "Start sort excel rows by headquarters"
     )
 
-    # Recorrer todas las filas del archivo Excel (incluye encabezados en row 1)
     for row_idx, row in enumerate(ws.iter_rows(), start=1):
 
-        if row_idx == 1:
-            continue  # Skip header row
-
-        # Verificar si la fila está vacía
-        if is_blank(row):
-            errors.append({
-                "row": row_idx,
-                "column": None,
-                "message": "Fila completamente vacía"
-            })
+        if is_header_row(row_idx):
             continue
 
-        # Validar celdas vacías en la fila
-        errors.extend(get_blank_cell_errors(row, row_idx))
+        blank_or_incomplete_errors = validate_row_blank_or_incomplete(
+            row,
+            row_idx,
+            errors,
+            EstudianteActivos
+        )
 
-        # Obtener el valor de la sede de la fila
-        sede_cell = get_value_from_row(row, EstudianteActivos.SEDE.value)
-        sede_value = sede_cell.strip().upper()
-        info_sede = SedeEnum.get_by_name(sede_value)
-
-        # Comprobar si la sede es válida y mapearla al SedeOrder
-        if info_sede:
-            sede_order = info_sede.number
-            # Almacenar fila en el diccionario
-            sede_dict[sede_order].append((row_idx, row))
-        else:
-            errors.append({
-                "row": row_idx,
-                "column": EstudianteActivos.SEDE.value,
-                "message": f"Sede no válida: {sede_value}"
-            })
+        if blank_or_incomplete_errors:
+            errors.extend(blank_or_incomplete_errors)
             continue
 
-    # Ordenar las filas según el valor de SedeOrder (de menor a mayor)
-    sorted_rows = []
-    for order in sorted(sede_dict.keys()):
-        sorted_rows.extend(sede_dict[order])
+        sede = get_value_from_row(row, EstudianteActivos.SEDE.value)
+        info_sede = EstActSedeEnum.get_by_name(sede)
+        if info_sede is None:
+            add_invalid_headquarters_error(
+                errors,
+                row_idx,
+                EstudianteActivos.SEDE.value,
+                sede
+            )
+            continue
 
+        sede_order = info_sede.number
+        sort_sede_dict[sede_order].append((row_idx, row))
+
+    sorted_rows = get_sort_rows_by_dict_sede(sort_sede_dict)
     logger.info("Finalizando organizacion de archivo de estudiantes activos")
-    logger.debug(f"Errores encontrados: {errors}")
-
+    fails_if_errors(errors)
     return sorted_rows
+
+
+def get_sort_rows_by_dict_sede(
+    sort_sede_dict: Dict[int, List[Tuple[int, Tuple[Cell, ...]]]]
+) -> List[Tuple[int, Tuple[Cell, ...]]]:
+    """
+    Ordenar las filas según el valor de SedeOrder (de menor a mayor)
+    Docstring for get_sort_rows_by_dict_sede
+
+    :param sort_sede_dict: Description
+    :type sort_sede_dict: Dict[int, List[Tuple[int, Tuple[Cell, ...]]]]
+    :return: Description
+    :rtype: List[Tuple[int, Tuple[Cell, ...]]]
+    """
+    sorted_rows = []
+    for order in sorted(sort_sede_dict.keys()):
+        sorted_rows.extend(sort_sede_dict[order])
+
+
+def build_summary(c: Collections) -> Dict[str, Any]:
+    return {
+        "status": True,
+        "cant_users": len(c.users),
+        "cant_units": len(c.units),
+        "cant_schools": len(c.schools),
+        "cant_headquarters": len(c.headquarters),
+        "cant_user_unit_assocs": len(c.user_unit_assocs),
+        "cant_unit_school_assocs": len(c.unit_school_assocs),
+        "cant_school_head_assocs": len(c.school_headquarters_assocs),
+    }

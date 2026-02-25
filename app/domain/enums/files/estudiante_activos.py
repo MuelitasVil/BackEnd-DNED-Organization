@@ -1,9 +1,20 @@
 from enum import Enum
 from typing import List
 
+from app.domain.enums.files.files_enum_utils import (
+    normalize_header
+)
 
-# Definir el mapeo de sedes y su orden
-class SedeEnum(Enum):
+SPECIAL_SEDES = {
+    "SEDE AMAZONÍA",
+    "SEDE CARIBE",
+    "SEDE ORINOQUÍA",
+    "SEDE TUMACO",
+    "SEDE DE LA PAZ",
+}
+
+
+class EstActSedeEnum(Enum):
     SEDE_BOGOTA = (1, "SEDE BOGOTÁ")
     SEDE_MANIZALES = (2, "SEDE MANIZALES")
     SEDE_MEDELLÍN = (3, "SEDE MEDELLÍN")
@@ -21,7 +32,8 @@ class SedeEnum(Enum):
     @classmethod
     def is_valid_sede(cls, sede_value: str) -> bool:
         """
-        Valida si el valor de la sede proporcionado existe en el Enum SedeEnum.
+        Valida si el valor de la sede proporcionado existe en el Enum
+        EstActSedeEnum.
         :param sede_value: El valor de la sede (con tildes, mayúsculas, etc.).
         :return: True si la sede existe, False en caso contrario.
         """
@@ -33,17 +45,21 @@ class SedeEnum(Enum):
         return False
 
     @classmethod
+    def is_special_sede(cls, sede: str) -> bool:
+        return sede in cls.SPECIAL_SEDES
+
+    @classmethod
     def get_by_name(cls, name: str):
         """
         Obtiene un miembro del Enum a partir del nombre de la sede.
         :param name: El nombre de la sede (como cadena, e.g., "SEDE BOGOTÁ").
         :return: El miembro correspondiente del Enum.
         """
-        # Comparar el nombre ingresado con el atributo _name del Enum
+        sede_value = name.strip().upper()
         for member in cls:
-            if member._name == name:
+            if member._name == sede_value:
                 return member
-        return None  # Si no se encuentra el nombre, se retorna None
+        return None
 
 
 class EstudianteActivos(Enum):
@@ -64,6 +80,6 @@ class EstudianteActivos(Enum):
         # Normalizamos las cadenas para evitar errores por
         # mayúsculas/minúsculas/espacios
 
-        normalized_headers = {h.strip().upper() for h in headers if h}
+        normalized_headers = {normalize_header(h) for h in headers if h}
         enum_headers = {e.name for e in cls}
         return enum_headers.issubset(normalized_headers)
