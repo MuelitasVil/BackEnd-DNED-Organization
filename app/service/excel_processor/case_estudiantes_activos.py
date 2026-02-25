@@ -8,6 +8,7 @@ from sqlmodel import Session
 from app.domain.dtos.school_headquarters_associate.school_headquarters_associate_input import (  # noqa: E501 ignora error flake8
     SchoolHeadquartersAssociateInput,
 )
+
 from app.domain.dtos.unit_school_associate.unit_school_associate_input import ( 
     UnitSchoolAssociateInput,
 )
@@ -34,7 +35,7 @@ from app.service.excel_processor.utils.collection_utils import (
 
 from app.service.excel_processor.utils.error_utils import (
     add_invalid_headquarters_error,
-    fails_if_errors
+    rails_if_errors
 )
 
 
@@ -603,7 +604,7 @@ def _sort_rows_by_sede(
 
     sorted_rows = get_sort_rows_by_dict_sede(sort_sede_dict)
     logger.info("Finalizando organizacion de archivo de estudiantes activos")
-    fails_if_errors(errors)
+    rails_if_errors(errors)
     return sorted_rows
 
 

@@ -38,7 +38,7 @@ def add_invalid_headquarters_error(
     })
 
 
-def fails_if_errors(errors: List[Dict[str, Any]]):
+def rails_if_errors(errors: List[Dict[str, Any]]):
     """Lanza HTTPException si hay errores en la lista."""
     if errors:
         raise HTTPException(status_code=400, detail={
