@@ -15,9 +15,9 @@ class TypeUserService:
         return repo.get_all(start=start, limit=limit)
 
     @staticmethod
-    def get_by_id(type_user_id: str, session: Session) -> Optional[TypeUser]:
+    def get_by_name(name: str, session: Session) -> Optional[TypeUser]:
         repo = TypeUserRepository(session)
-        return repo.get_by_id(type_user_id)
+        return repo.get_by_name(name)
 
     @staticmethod
     def create(input_data: TypeUserInput, session: Session) -> TypeUser:
@@ -26,12 +26,12 @@ class TypeUserService:
 
     @staticmethod
     def update(
-        type_user_id: str,
+        type_user_name: str,
         input_data: TypeUserInput,
         session: Session
     ) -> Optional[TypeUser]:
-        return TypeUserRepository(session).update(type_user_id, input_data)
+        return TypeUserRepository(session).update(type_user_name, input_data)
 
     @staticmethod
-    def delete(type_user_id: str, session: Session) -> bool:
-        return TypeUserRepository(session).delete(type_user_id)
+    def delete(type_user_name: str, session: Session) -> bool:
+        return TypeUserRepository(session).delete(type_user_name)

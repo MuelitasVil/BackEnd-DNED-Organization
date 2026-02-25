@@ -112,8 +112,7 @@ CREATE TABLE IF NOT EXISTS school_headquarters_associate (
 
 -- Tabla: type_user
 CREATE TABLE IF NOT EXISTS type_user (
-    type_user_id VARCHAR(50) PRIMARY KEY,
-    name         VARCHAR(100) NOT NULL,
+    name         VARCHAR(100) PRIMARY KEY,
     description  TEXT         NULL
 ) ENGINE=InnoDB;
 

@@ -16,8 +16,8 @@ class TypeUserRepository:
             select(TypeUser).offset(start).limit(limit)
         ).all()
 
-    def get_by_id(self, type_user_id: str) -> Optional[TypeUser]:
-        return self.session.get(TypeUser, type_user_id)
+    def get_by_name(self, name: str) -> Optional[TypeUser]:
+        return self.session.get(TypeUser, name)
 
     def create(self, type_user: TypeUser) -> TypeUser:
         self.session.add(type_user)
@@ -27,10 +27,10 @@ class TypeUserRepository:
 
     def update(
         self,
-        type_user_id: str,
+        type_user_name: str,
         data: TypeUserInput
     ) -> Optional[TypeUser]:
-        record = self.get_by_id(type_user_id)
+        record = self.get_by_name(type_user_name)
         if not record:
             return None
 
@@ -43,8 +43,8 @@ class TypeUserRepository:
         self.session.refresh(record)
         return record
 
-    def delete(self, type_user_id: str) -> bool:
-        record = self.get_by_id(type_user_id)
+    def delete(self, type_user_name: str) -> bool:
+        record = self.get_by_name(type_user_name)
         if record:
             self.session.delete(record)
             self.session.commit()

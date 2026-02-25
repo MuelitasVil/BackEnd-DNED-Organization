@@ -110,7 +110,9 @@ def case_estudiantes_activos(
         headquarters=[],
         user_unit_assocs=[],
         unit_school_assocs=[],
-        school_headquarters_assocs=[]
+        school_headquarters_assocs=[],
+        user_types=[],
+        type_user_unit_assocs=[]
     )
 
     seen = Seen(
@@ -121,7 +123,9 @@ def case_estudiantes_activos(
         user_unit_assocs=set(),
         unit_school_assocs=set(),
         school_headquarters_assocs=set(),
-        unit_with_school=set()
+        unit_with_school=set(),
+        type_user_unit_assocs=set(),
+        user_types=set()
     )
 
     sorted_rows = _sort_rows_by_sede(ws, errors)

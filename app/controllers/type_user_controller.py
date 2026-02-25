@@ -21,12 +21,12 @@ def list_type_users(
     )
 
 
-@router.get("/{type_user_id}", response_model=TypeUser)
+@router.get("/{type_user_name}", response_model=TypeUser)
 def get_type_user(
-    type_user_id: str,
+    type_user_name: str,
     session: Session = Depends(get_session)
 ):
-    obj = TypeUserService.get_by_id(type_user_id, session)
+    obj = TypeUserService.get_by_name(type_user_name, session)
     if not obj:
         raise HTTPException(status_code=404, detail="TypeUser not found")
     return obj
