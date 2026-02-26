@@ -74,7 +74,7 @@ CREATE TABLE IF NOT EXISTS unit_unal (
     email       VARCHAR(100) NULL,
     name        VARCHAR(100) NOT NULL,
     description TEXT         NULL,
-    type_user   VARCHAR(50)  NULL
+    type_user   VARCHAR(100)  NULL
 ) ENGINE=InnoDB;
 
 -- Tabla: user_unit_associate  (PK compuesta)

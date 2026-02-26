@@ -25,7 +25,11 @@ from app.domain.dtos.user_unit_associate.user_unit_associate_input import (
     UserUnitAssociateInput,
 )
 
-from app.domain.enums.files.funcionarios_activos_enum import FunSedeEnum, FuncionariosActivos
+from app.domain.enums.files.funcionarios_activos_enum import (
+    FunSedeEnum,
+    FuncionariosActivos
+)
+
 from app.service.crud.school_headquarters_associate_service import (
     SchoolHeadquartersAssociateService
 )
@@ -61,17 +65,15 @@ from app.service.excel_processor.utils.excel_validator import (
     validate_row_blank_or_incomplete,
 )
 
+from app.utils.string_utils import (
+    get_abreviatura
+)
+
 
 from app.domain.dtos.user_unal.user_unal_input import UserUnalInput
 from app.domain.dtos.unit_unal.unit_unal_input import UnitUnalInput
 from app.domain.dtos.school.school_input import SchoolInput
 from app.domain.dtos.headquarters.headquarters_input import HeadquartersInput
-
-from app.domain.enums.files.general import General_Values
-from app.domain.enums.files.estudiante_activos_enum import (
-    EstudianteActivos,
-    EstActSedeEnum
-)
 
 from app.service.crud.user_unal_service import UserUnalService
 from app.service.crud.unit_unal_service import UnitUnalService
@@ -544,92 +546,53 @@ def _get_user_from_row(row: Tuple[Cell, ...]) -> UserUnalInput:
 
 def _get_unit_from_row(row: Tuple[Cell, ...]) -> UnitUnalInput:
     sede: str = get_value_from_row(row, FuncionariosActivos.SEDE.value)
-    tipoFuncionario: str = get_value_from_row(
-        row, FuncionariosActivos.NOMBRE_CARGO.value
+    prefix_sede = get_prefix_sede(sede)
+    unit = get_value_from_row(row, FuncionariosActivos.UNIDAD.value)
+    nombre_vinculacion = get_value_from_row(
+        row, FuncionariosActivos.NOMBRE_VINCULACION.value
     )
-
-    prefix_sede: str = sede.split(" ")[0][:3].lower()
-    if sede == FunSedeEnum.SEDE_DE_LA_PAZ.file_name:
-        prefix_sede = sede.split(" ")[1][:3].lower()
-    elif sede == FunSedeEnum.NACIONAL.file_name:
-        prefix_sede = sede.split(" ")[1][:3].lower()
-
-    cod_unit: str = get_value_from_row(row, EstudianteActivos.COD_PLAN.value)
-    plan: str = get_value_from_row(row, EstudianteActivos.PLAN.value)
-    tipo_nivel: str = get_value_from_row(
-        row, EstudianteActivos.TIPO_NIVEL.value
-    )
-    cod_unit = f"{cod_unit}_{prefix_sede}"
+    cod_unit: str = f"{get_abreviatura(unit)}_{prefix_sede}"
     email: str = f"{cod_unit}@unal.edu.co"
+
     return UnitUnalInput(
         cod_unit=cod_unit,
         email=email,
-        name=plan or None,
-        description=None,
-        type_user=tipo_nivel or None,
+        name=unit,
+        description=nombre_vinculacion,
+        type_user=None,
     )
 
 
 def _get_school_from_row(
     row: Tuple[Cell, ...]
-) -> Tuple[SchoolInput, bool]:
-    isSpecialHeadquarters: bool = False
-    facultad: str = get_value_from_row(row, EstudianteActivos.FACULTAD.value)
-    sede: str = get_value_from_row(row, EstudianteActivos.SEDE.value)
-    tipoEstudiante: str = get_value_from_row(
-        row, EstudianteActivos.TIPO_NIVEL.value
+) -> SchoolInput:
+    facultad: str = get_value_from_row(
+        row, FuncionariosActivos.FACULTAD_NOMBRE_ZONA.value
     )
-    prefix_sede: str = sede.split(" ")[1][:3].lower()
+    sede: str = get_value_from_row(
+        row, FuncionariosActivos.SEDE.value
+    )
+    prefix_sede: str = get_prefix_sede(sede)
 
-    logger.debug(f"Facultad: {facultad}, Sede: {sede}, Tipo: {tipoEstudiante}")
-
-    if tipoEstudiante == General_Values.PREGRADO.value:
-        logger.debug("Tipo de estudiante es pregrado")
-        tipoEstudiante = "pre"
-    elif tipoEstudiante == General_Values.POSGRADO.value:
-        logger.debug("Tipo de estudiante es posgrado")
-        tipoEstudiante = "pos"
-
-    cod_school: str = ""
-
-    if EstActSedeEnum.is_special_sede(sede):
-        isSpecialHeadquarters = True
-        cod_school = f"estf{tipoEstudiante}{prefix_sede}"
-    else:
-        acronimo = "".join(
-            p[0].lower() for p in facultad.split() if len(p) > 2
-        )
-        cod_school = f"est{acronimo}{tipoEstudiante}_{prefix_sede}"
-
+    logger.debug(f"Facultad: {facultad}, Sede: {sede}")
+    abreviatura = get_abreviatura(facultad)
+    cod_school: str = f"{abreviatura}_{prefix_sede}"
     email: str = f"{cod_school}@unal.edu.co"
 
     return SchoolInput(
         cod_school=cod_school,
         email=email,
-        name=facultad or None,
+        name=facultad,
         description=None,
         general_code=None,
-    ), isSpecialHeadquarters
+        type_user=None
+    )
 
 
 def _get_headquarters_from_row(row: Tuple[Cell, ...]) -> HeadquartersInput:
-    sede: str = get_value_from_row(row, EstudianteActivos.SEDE.value)
-    tipoEstudiante: str = get_value_from_row(
-        row, EstudianteActivos.TIPO_NIVEL.value
-    )
-
-    if tipoEstudiante == General_Values.PREGRADO.value:
-        tipoEstudiante = "pre"
-    elif tipoEstudiante == General_Values.POSGRADO.value:
-        tipoEstudiante = "pos"
-
-    prefix_sede: str = sede.split(" ")[1][:3].lower()
-    if sede == EstActSedeEnum.SEDE_DE_LA_PAZ._name:
-        prefix_sede = sede.split(" ")[3][:3].lower()
-
-    cod_sede: str = f"estudiante{tipoEstudiante}_{prefix_sede}"
-    general_code: str = f"estudiante_{prefix_sede}"
-
+    sede: str = get_value_from_row(row, FuncionariosActivos.SEDE.value)
+    prefix_sede: str = get_prefix_sede(sede)
+    cod_sede: str = f"funcionario_{prefix_sede}"
     email: str = f"{cod_sede}@unal.edu.co"
 
     return HeadquartersInput(
@@ -637,25 +600,22 @@ def _get_headquarters_from_row(row: Tuple[Cell, ...]) -> HeadquartersInput:
         email=email,
         name=sede,
         description=None,
-        general_code=general_code,
+        general_code=None,
+        type_user=None
     )
 
 
 def __get_type_user_from_row(row: Tuple[Cell, ...]) -> TypeUserInput:
-    tipoEstudiante: str = get_value_from_row(
-        row, EstudianteActivos.TIPO_NIVEL.value
+    cargo: str = get_value_from_row(
+        row, FuncionariosActivos.NOMBRE_CARGO.value
+    )
+    description: str = get_value_from_row(
+        row, FuncionariosActivos.NOMBRE_VINCULACION.value
     )
 
-    if tipoEstudiante == General_Values.PREGRADO.value:
-        tipoEstudiante = "pregrado"
-    elif tipoEstudiante == General_Values.POSGRADO.value:
-        tipoEstudiante = "posgrado"
-
-    name: str = f"Estudiante {tipoEstudiante.capitalize()}"
-
     return TypeUserInput(
-        name=name,
-        description=None
+        name=cargo,
+        description=description
     )
 
 
@@ -672,3 +632,13 @@ def build_summary(c: Collections) -> Dict[str, Any]:
         "cant_type_user": len(c.user_types),
         "cant_type_user_unit_assocs": len(c.type_user_unit_assocs)
     }
+
+
+def get_prefix_sede(sede: str) -> str:
+    prefix_sede: str = sede.split(" ")[0][:3].lower()
+    if sede == FunSedeEnum.SEDE_DE_LA_PAZ.file_name:
+        prefix_sede = sede.split(" ")[1][:3].lower()
+    elif sede == FunSedeEnum.NACIONAL.file_name:
+        prefix_sede = sede.split(" ")[1][:3].lower()
+
+    return prefix_sede

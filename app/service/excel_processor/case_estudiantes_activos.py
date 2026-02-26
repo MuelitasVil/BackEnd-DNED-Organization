@@ -61,6 +61,9 @@ from app.service.excel_processor.utils.excel_validator import (
     validate_row_blank_or_incomplete,
 )
 
+from app.utils.string_utils import (
+    get_acronimo    
+)
 
 from app.domain.dtos.user_unal.user_unal_input import UserUnalInput
 from app.domain.dtos.unit_unal.unit_unal_input import UnitUnalInput
@@ -583,9 +586,7 @@ def _get_school_from_row(
         cod_school = f"estf{tipoEstudiante}{prefix_sede}"
         general_code = f"estf{prefix_sede}"
     else:
-        acronimo = "".join(
-            p[0].lower() for p in facultad.split() if len(p) > 2
-        )
+        acronimo = get_acronimo(facultad)
         cod_school = f"est{acronimo}{tipoEstudiante}_{prefix_sede}"
         general_code = f"est{acronimo}_{prefix_sede}"
 
