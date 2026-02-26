@@ -1,6 +1,6 @@
 from openpyxl import Workbook, worksheet
 from pytest import Session
-from app.domain.enums.files.estudiante_activos import EstudianteActivos
+from app.domain.enums.files.estudiante_activos_enum import EstudianteActivos
 from app.service.excel_processor.case_estudiantes_activos import (
     case_estudiantes_activos
 )

@@ -62,7 +62,7 @@ from app.service.excel_processor.utils.excel_validator import (
 )
 
 from app.utils.string_utils import (
-    get_acronimo    
+    get_acronimo
 )
 
 from app.domain.dtos.user_unal.user_unal_input import UserUnalInput
