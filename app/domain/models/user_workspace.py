@@ -6,11 +6,11 @@ from typing import Optional
 class UserWorkspace(SQLModel, table=True):
     __tablename__ = "user_workspace"
 
-    user_workspace_id: str = Field(
-        default=None,
-        primary_key=True,
-        max_length=50
-    )
-    space: str = Field(max_length=100)
+    user_workspace_id: str = Field(default=None, primary_key=True)
+    email_unal: str = Field(default=None, max_length=50)
     last_connection: Optional[datetime] = None
-    active: bool = True
+    status: bool = True
+    email_usage: Optional[float] = None
+    storage_used: Optional[float] = None
+    storage_limit: Optional[float] = None
+    isUser: bool = False

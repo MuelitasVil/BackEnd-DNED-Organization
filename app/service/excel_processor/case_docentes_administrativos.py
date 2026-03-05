@@ -113,7 +113,7 @@ class Seen:
     type_user_unit_assocs: Set[str]
 
 
-def case_estudiantes_activos(
+def case_administrativos_activos(
     ws: Worksheet,
     cod_period: str,
     session: Session

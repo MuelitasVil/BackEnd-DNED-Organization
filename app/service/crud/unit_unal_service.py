@@ -15,6 +15,20 @@ class UnitUnalService:
         return repo.get_all(start=start, limit=limit)
 
     @staticmethod
+    def get_all_no_pagination(session: Session) -> List[UnitUnal]:
+        repo = UnitUnalRepository(session)
+        start: int = 0
+        limit: int = 5000
+        units: List[UnitUnal] = []
+        while True:
+            batch = repo.get_all(start=start, limit=limit)
+            if not batch or len(batch) == 0:
+                break
+            units.extend(batch)
+            start += limit
+        return units
+
+    @staticmethod
     def get_by_id(cod_unit: str, session: Session) -> Optional[UnitUnal]:
         return UnitUnalRepository(session).get_by_id(cod_unit)
 

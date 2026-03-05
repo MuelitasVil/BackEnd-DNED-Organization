@@ -38,9 +38,17 @@ CREATE TABLE IF NOT EXISTS period (
 -- Tabla: user_workspace
 CREATE TABLE IF NOT EXISTS user_workspace (
     user_workspace_id VARCHAR(50) PRIMARY KEY,
-    space             VARCHAR(100) NOT NULL,
+    email_unal VARCHAR(50),
     last_connection   DATETIME     NULL,
-    active            BOOLEAN      NOT NULL DEFAULT TRUE
+    status            BOOLEAN      NOT NULL DEFAULT TRUE,
+    email_usage FLOAT        NULL,
+    storage_used      FLOAT        NULL,
+    storage_limit     FLOAT        NULL,
+    isUser BOOLEAN NOT NULL DEFAULT FALSE,
+    cod_period VARCHAR(50)  NOT NULL,
+    CONSTRAINT fk_user_workspace_email FOREIGN KEY (email_unal) REFERENCES user_unal(email_unal) 
+    CONSTRAINT fk_uua_period FOREIGN KEY (cod_period) REFERENCES period(cod_period)      ON DELETE RESTRICT ON UPDATE CASCADE,
+    ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB;
 
 -- Tabla: user_unal
@@ -53,19 +61,6 @@ CREATE TABLE IF NOT EXISTS user_unal (
     gender      VARCHAR(10)  NULL,
     birth_date  DATE         NULL,
     headquarters VARCHAR(100) NULL
-) ENGINE=InnoDB;
-
--- Tabla: user_workspace_associate  (PK compuesta y FK a user_workspace)
-CREATE TABLE IF NOT EXISTS user_workspace_associate (
-    email_unal        VARCHAR(100) NOT NULL,
-    user_workspace_id VARCHAR(50)  NOT NULL,
-    cod_period        VARCHAR(50)  NOT NULL,
-    PRIMARY KEY (email_unal, user_workspace_id, cod_period),
-    CONSTRAINT fk_uws_user   FOREIGN KEY (email_unal)        REFERENCES user_unal(email_unal)             ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT fk_uws_space  FOREIGN KEY (user_workspace_id) REFERENCES user_workspace(user_workspace_id) ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT fk_uws_period FOREIGN KEY (cod_period)        REFERENCES period(cod_period)                ON DELETE RESTRICT ON UPDATE CASCADE,
-    INDEX idx_uws_period (cod_period),
-    INDEX idx_uws_space (user_workspace_id)
 ) ENGINE=InnoDB;
 
 -- Tabla: unit_unal

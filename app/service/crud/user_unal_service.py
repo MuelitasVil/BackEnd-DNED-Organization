@@ -15,6 +15,20 @@ class UserUnalService:
         return UserUnalRepository(session).get_all(start, limit)
 
     @staticmethod
+    def get_all_no_pagination(session: Session) -> List[UserUnal]:
+        repo = UserUnalRepository(session)
+        start: int = 0
+        limit: int = 5000
+        users: List[UserUnal] = []
+        while True:
+            batch = repo.get_all(start=start, limit=limit)
+            if not batch or len(batch) == 0:
+                break
+            users.extend(batch)
+            start += limit
+        return users
+
+    @staticmethod
     def get_by_email(email_unal: str, session: Session) -> Optional[UserUnal]:
         return UserUnalRepository(session).get_by_email(email_unal)
 
