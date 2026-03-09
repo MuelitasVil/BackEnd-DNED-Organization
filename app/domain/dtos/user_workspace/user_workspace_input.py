@@ -11,3 +11,4 @@ class UserWorkspaceInput(BaseModel):
     storage_used: Optional[float] = None
     storage_limit: Optional[float] = None
     isUser: Optional[bool] = None
+    cod_period: Optional[str] = None
