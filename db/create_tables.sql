@@ -15,16 +15,17 @@ CREATE TABLE IF NOT EXISTS period (
 CREATE TABLE IF NOT EXISTS user_workspace (
     user_workspace_id VARCHAR(50) PRIMARY KEY,
     email_unal VARCHAR(50),
-    last_connection   DATETIME     NULL,
-    status            BOOLEAN      NOT NULL DEFAULT TRUE,
-    email_usage FLOAT        NULL,
-    storage_used      FLOAT        NULL,
-    storage_limit     FLOAT        NULL,
-    isUser BOOLEAN NOT NULL DEFAULT FALSE,
-    cod_period VARCHAR(50)  NOT NULL,
-    CONSTRAINT fk_user_workspace_email FOREIGN KEY (email_unal) REFERENCES user_unal(email_unal) 
-    ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT fk_user_workspace_period FOREIGN KEY (cod_period) REFERENCES period(cod_period)  ON DELETE RESTRICT ON UPDATE CASCADE
+    last_connection DATETIME NULL,
+    status BOOLEAN NOT NULL DEFAULT TRUE,
+    email_usage FLOAT NULL,
+    storage_used FLOAT NULL,
+    storage_limit FLOAT NULL,
+    is_person BOOLEAN NOT NULL DEFAULT FALSE,
+    cod_period VARCHAR(50) NOT NULL,
+    CONSTRAINT fk_uua_period
+        FOREIGN KEY (cod_period) REFERENCES period(cod_period)
+        ON DELETE RESTRICT ON UPDATE CASCADE,
+    INDEX idx_user_workspace_email (email_unal)
 ) ENGINE=InnoDB;
 
 -- Tabla: user_unal

@@ -1,4 +1,7 @@
-keywords_not_person = [
+import unicodedata
+
+
+keywords_not_person = {
     "aai",
     "accreditation",
     "acompanamiento",
@@ -10,7 +13,7 @@ keywords_not_person = [
     "actividades",
     "actores",
     "actualizacion",
-    "actualización"
+    "actualización",
     "administracion",
     "administrador",
     "administrativa",
@@ -25,7 +28,7 @@ keywords_not_person = [
     "amazonia",
     "archivo",
     "area",
-    "área"
+    "área",
     "atencion",
     "atención",
     "atenciongeneracione",
@@ -50,8 +53,8 @@ keywords_not_person = [
     "auxiliar",
     "bogotá",
     "bogota",
-    "bibliografica"
-    "bienestar"
+    "bibliografica",
+    "bienestar",
     "caribe",
     "casa",
     "calidad",
@@ -75,8 +78,8 @@ keywords_not_person = [
     "cop16",
     "colombiana",
     "colombia",
-    "copasst"
-    "ces"
+    "copasst",
+    "ces",
     "cine",
     "communication",
     "computación",
@@ -85,7 +88,7 @@ keywords_not_person = [
     "comité",
     "comites",
     "comite",
-    "commit"
+    "commit",
     "congress",
     "consejo",
     "contratacion",
@@ -111,7 +114,7 @@ keywords_not_person = [
     "conflicto",
     "congreso",
     "conmemoracion",
-    "consecucion"
+    "consecucion",
     "conmutacion",
     "comunicado",
     "constituyente",
@@ -165,7 +168,7 @@ keywords_not_person = [
     "depósito",
     "depósitos",
     "depositos",
-    "deposito"
+    "deposito",
     "deporte",
     "deportes",
     "digiitales",
@@ -232,13 +235,13 @@ keywords_not_person = [
     "interventoria",
     "innovacion",
     "innova",
-    "interventor"
-    "imagen"
+    "interventor",
+    "imagen",
     "innovacoding",
     "inscripcion",
     "inscripciones",
     "implementacion",
-    "impresion"
+    "impresion",
     "inscrito",
     "laboratorio",
     "indicadores",
@@ -249,7 +252,7 @@ keywords_not_person = [
     "informes",
     "infraestructura",
     "informativo",
-    "ingenieria"
+    "ingenieria",
     "invitacion",
     "invitaciones",
     "investigacion",
@@ -268,7 +271,7 @@ keywords_not_person = [
     "misión",
     "misiones",
     "medellín",
-    "medico"
+    "medico",
     "moodle",
     "nacional",
     "orinoquia",
@@ -281,7 +284,7 @@ keywords_not_person = [
     "plan",
     "plancha",
     "planes",
-    "planeación"
+    "planeación",
     "plataforma",
     "planta",
     "presupuestal",
@@ -294,7 +297,7 @@ keywords_not_person = [
     "practica",
     "practicas",
     "practicantes",
-    "practicante"
+    "practicante",
     "presupuesto",
     "procesos",
     "produccion",
@@ -304,15 +307,15 @@ keywords_not_person = [
     "programas",
     "proyectos",
     "proyecto",
-    "punto"
+    "punto",
     "quimica",
     "quimico",
-    "radio"
+    "radio",
     "recaudo",
     "recepcion",
     "recibos",
     "recibos",
-    "recreacion"
+    "recreacion",
     "rectoria",
     "recursos",
     "red",
@@ -321,7 +324,7 @@ keywords_not_person = [
     "referencia",
     "reforma",
     "regalias",
-    "regionalización"
+    "regionalización",
     "registro",
     "rep",
     "repensar",
@@ -403,4 +406,24 @@ keywords_not_person = [
     "[required]",
     "a",
     "a."
-]
+}
+
+
+def normalize_text(text: str) -> str:
+    text = text.lower().strip()
+    text = unicodedata.normalize("NFKD", text)
+    text = "".join(c for c in text if not unicodedata.combining(c))
+    return text
+
+
+def get_first_word(text: str) -> str:
+    text = text.strip()
+    if not text:
+        return ""
+    return text.split()[0]
+
+
+def verify_is_person(name: str) -> bool:
+    first_word = get_first_word(name)
+    first_word = normalize_text(first_word)
+    return first_word not in keywords_not_person

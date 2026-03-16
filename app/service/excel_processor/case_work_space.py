@@ -17,10 +17,6 @@ from app.domain.enums.files.work_space_enum import (
 
 from app.domain.models.user_unal import UserUnal
 
-from app.service.excel_processor.utils.collection_utils import (
-    is_unique_entity_in_set
-)
-
 from app.service.excel_processor.utils.error_utils import (
     raise_if_errors
 )
@@ -36,7 +32,12 @@ from app.service.crud.user_unal_service import (
     UserUnalService
 )
 
+from app.service.crud.user_workspace_service import (
+    UserWorkspaceService
+)
+
 from app.utils.app_logger import AppLogger
+from app.utils.keyword_not_person import verify_is_person
 
 logger = AppLogger(__file__)
 logger2 = AppLogger(__file__, "user_unit_association.log")
@@ -108,11 +109,12 @@ def _excel_processing(
             errors.extend(blank_or_incomplete_errors)
             continue
 
-        work_space: UserWorkspaceInput = _get_work_space_from_row(row)
+        work_space: UserWorkspaceInput = _get_work_space_from_row(
+            row,
+            cod_period,
+            all_users
+        )
         collections.data_work_space.append(work_space)
-
-
-
 
         logger.debug(f"Procesando fila {row_idx}")
         logger.debug(f"Contenido de la fila: {[cell.value for cell in row]}")
@@ -120,41 +122,39 @@ def _excel_processing(
     raise_if_errors(errors)
 
 
-def _get_work_space_from_row(row: Tuple[Cell, ...]) -> UserWorkspaceInput:
+def _get_work_space_from_row(
+        row: Tuple[Cell, ...],
+        cod_period: str,
+        users: Dict[str, UserUnal]
+) -> UserWorkspaceInput:
+    email = get_value_from_row(row, WorkSpace.EMAIL.value)
+    last_connection = get_value_from_row(row, WorkSpace.LAST_SING_IN.value)
+    status = get_value_from_row(row, WorkSpace.STATUS.value)
+    email_usage = get_value_from_row(row, WorkSpace.EMAIL_USAGE.value)
+    storage_used = get_value_from_row(row, WorkSpace.STORAGE_USED.value)
+    storage_limit = get_value_from_row(row, WorkSpace.STORAGE_LIMIT.value)
+    name = get_value_from_row(row, WorkSpace.FIRST_NAME.value)
+    is_user = validate_is_person(name, email, users)
     return UserWorkspaceInput(
-        email_unal=(
-            get_value_from_row(row, WorkSpace.EMAIL.value) or None
-        ),
-        last_connection=_get_date_time(
-            get_value_from_row(row, WorkSpace.LAST_SING_IN.value) or None
-            ),
-        status=(
-            get_value_from_row(row, WorkSpace.STATUS.value) or None
-        ),
-        email_usage=_get_float(
-            get_value_from_row(row, WorkSpace.EMAIL_USAGE.value) or None
-        ),
-        storage_used=_get_float(
-            get_value_from_row(row, WorkSpace.STORAGE_USED.value) or None
-        ),
-        storage_limit=_get_float(
-            get_value_from_row(row, WorkSpace.STORAGE_LIMIT.value) or None
-        )
+        email_unal=(email or None),
+        last_connection=_get_date_time(last_connection or None),
+        status=(status or None),
+        email_usage=_get_float(email_usage or None),
+        storage_used=_get_float(storage_used or None),
+        storage_limit=_get_float(storage_limit or None),
+        is_person=is_user,
+        cod_period=cod_period,
     )
 
 
 def _persist_collections(c: Collections, session: Session) -> Dict[str, Any]:
-    try:        
+    try:
+        res_user_work_space = UserWorkspaceService.bulk_insert_ignore(
+            c.data_work_space, session
+        )
+
         return {
-            "users": resUsers,
-            "units": resUnits,
-            "schools": resSchools,
-            "headquarters": resHeadquarters,
-            "user_unit": resUserUnitAssocs,
-            "unit_school": resUnitSchoolAssocs,
-            "school_headquarters": resSchoolHeadquartersAssocs,
-            "type_user": resTypeUser,
-            "type_user_unit": resTypeUserUnitAssocs
+            "users": res_user_work_space
         }
 
     except Exception as e:
@@ -229,3 +229,15 @@ def _get_float(value: str) -> Optional[float]:
         return float(value)
     except (ValueError, TypeError):
         return None
+
+
+def validate_is_person(
+        name: str,
+        email: str,
+        users: Dict[str, UserUnal]
+) -> bool:
+    if not name:
+        return False
+    if email in users:
+        return True
+    return verify_is_person(name)

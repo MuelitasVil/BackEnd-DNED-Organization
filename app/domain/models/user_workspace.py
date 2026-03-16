@@ -13,5 +13,5 @@ class UserWorkspace(SQLModel, table=True):
     email_usage: Optional[float] = None
     storage_used: Optional[float] = None
     storage_limit: Optional[float] = None
-    isUser: bool = False
+    is_person: bool = False
     cod_period: Optional[str] = None
