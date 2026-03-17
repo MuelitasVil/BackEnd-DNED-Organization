@@ -1,9 +1,14 @@
+from fastapi.responses import JSONResponse
+
+from app.exceptions.base_exceptions import (
+    AppError
+)
+
 from .controllers import (
     period_controller,
     unit_school_associate_controller,
     user_workspace_controller,
     auth_controller,
-    user_workspace_associate_controller,
     user_unal_controller,
     unit_unal_controller,
     user_unit_associate_controller,
@@ -19,7 +24,7 @@ from .controllers import (
     upload_controller,
 )
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 
 app = FastAPI()
 
@@ -34,7 +39,6 @@ app.include_router(auth_controller.router)
 app.include_router(upload_controller.router)
 app.include_router(period_controller.router)
 app.include_router(user_workspace_controller.router)
-app.include_router(user_workspace_associate_controller.router)
 app.include_router(user_unal_controller.router)
 app.include_router(unit_unal_controller.router)
 app.include_router(user_unit_associate_controller.router)
@@ -48,3 +52,15 @@ app.include_router(email_sender_controller.router)
 app.include_router(email_sender_unit_controller.router)
 app.include_router(email_sender_school_controller.router)
 app.include_router(email_sender_headquarters_controller.router)
+
+
+@app.exception_handler(AppError)
+async def app_error_handler(request: Request, exc: AppError):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "error": exc.code,
+            "message": exc.message,
+            "details": exc.extra
+        }
+    )

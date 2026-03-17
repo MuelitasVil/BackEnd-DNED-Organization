@@ -1,5 +1,6 @@
 from app.domain.dtos.period.period_input import PeriodInput
 from app.domain.models.period import Period
+from app.exceptions.period_exceptions import PeriodNotFoundError
 from app.repository.period_repository import PeriodRepository
 from sqlalchemy.orm import Session
 from typing import List, Optional
@@ -37,3 +38,11 @@ class PeriodService:
     def delete_period(cod_period: str, session: Session) -> bool:
         repo = PeriodRepository(session)
         return repo.delete(cod_period)
+
+    @staticmethod
+    def get_required(cod_period: str, session: Session) -> Period:
+        repo = PeriodRepository(session)
+        period = repo.get_by_id(cod_period)
+        if not period:
+            raise PeriodNotFoundError(cod_period)
+        return period

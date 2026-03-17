@@ -23,6 +23,6 @@ async def upload_excel_file(
             "error": f"El periodo con código {cod_period} no existe",
             "message": "Verifique el código del periodo"
         })
+    PeriodService.get_required(cod_period, session)
     wb: Workbook = await readExcelFile(file)
-    # Save the data in the excel in database
     return process_file(wb, cod_period, session)

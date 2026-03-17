@@ -21,7 +21,7 @@ class GlobalSedeEnum(Enum):
     SEDE_ORINOQUÍA = ("SEDE ORINOQUÍA")
     SEDE_TUMACO = ("SEDE TUMACO")
     SEDE_DE_LA_PAZ = ("SEDE DE LA PAZ")
-    NACIONAL = ("NIVEL NACIONAL", "NIVEL NACIONAL")
+    NACIONAL = ("NIVEL NACIONAL")
 
     def __init__(self, _name):
         self._name = _name

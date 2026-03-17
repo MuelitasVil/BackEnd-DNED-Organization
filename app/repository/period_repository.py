@@ -46,3 +46,7 @@ class PeriodRepository:
         self.session.commit()
         self.session.refresh(period)
         return period
+
+    def exists(self, cod_period: str) -> bool:
+        period = self.get_by_id(cod_period)
+        return period is not None
