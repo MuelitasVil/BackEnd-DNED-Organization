@@ -8,8 +8,8 @@ class TypeUserAssociation(SQLModel, table=True):
         foreign_key="user_unal.email_unal",
         primary_key=True, max_length=100
     )
-    type_user_id: str = Field(
-        foreign_key="type_user.type_user_id",
+    type_user_name: str = Field(
+        foreign_key="type_user.name",
         primary_key=True, max_length=50
     )
     cod_period: str = Field(

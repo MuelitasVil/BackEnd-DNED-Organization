@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS user_workspace (
     storage_limit FLOAT NULL,
     is_person BOOLEAN NOT NULL DEFAULT FALSE,
     cod_period VARCHAR(50) NOT NULL,
-    CONSTRAINT fk_uua_period
+    CONSTRAINT fk_uwa_period
         FOREIGN KEY (cod_period) REFERENCES period(cod_period)
         ON DELETE RESTRICT ON UPDATE CASCADE,
     INDEX idx_user_workspace_email (email_unal)
@@ -117,13 +117,13 @@ CREATE TABLE IF NOT EXISTS type_user (
 -- Tabla: type_user_association  (ya tenías PK compuesta; agrego NOT NULL/índices)
 CREATE TABLE IF NOT EXISTS type_user_association (
     email_unal   VARCHAR(100) NOT NULL,
-    type_user_id VARCHAR(50)  NOT NULL,
+    type_user_name VARCHAR(50)  NOT NULL,
     cod_period   VARCHAR(50)  NOT NULL,
-    PRIMARY KEY (email_unal, type_user_id, cod_period),
+    PRIMARY KEY (email_unal, type_user_name, cod_period),
     CONSTRAINT fk_tua_user   FOREIGN KEY (email_unal)   REFERENCES user_unal(email_unal)     ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT fk_tua_type   FOREIGN KEY (type_user_id) REFERENCES type_user(type_user_id)   ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT fk_tua_type   FOREIGN KEY (type_user_name) REFERENCES type_user(name)   ON DELETE RESTRICT ON UPDATE CASCADE,
     CONSTRAINT fk_tua_period FOREIGN KEY (cod_period)   REFERENCES period(cod_period)        ON DELETE RESTRICT ON UPDATE CASCADE,
-    INDEX idx_tua_type (type_user_id),
+    INDEX idx_tua_type (type_user_name),
     INDEX idx_tua_period (cod_period)
 ) ENGINE=InnoDB;
 

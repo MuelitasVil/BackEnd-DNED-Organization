@@ -12,7 +12,11 @@ class AppLogger:
         :param logger_file: Ruta del archivo de log donde se escribirán los
             logs
         """
-        # solo el nombre del archivo
+        logs_dir = os.path.join(os.getcwd(), "logs")
+        os.makedirs(logs_dir, exist_ok=True)
+
+        log_path = os.path.join(logs_dir, logger_file)
+
         module_name = os.path.basename(module_file)
         self.logger = logging.getLogger(module_name)
         self.logger.setLevel(logging.DEBUG)  # nivel mínimo a registrar
@@ -20,7 +24,7 @@ class AppLogger:
         # Evitar duplicados si el logger ya tiene handlers
         if not self.logger.handlers:
             # Crear handler para archivo fijo con UTF-8
-            file_handler = logging.FileHandler(logger_file, encoding="utf-8")
+            file_handler = logging.FileHandler(log_path, encoding="utf-8")
             file_handler.setLevel(logging.DEBUG)
 
             # Formato de los mensajes

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, UploadFile, status
 from sqlmodel import Session
 from openpyxl import Workbook
 
@@ -17,12 +17,6 @@ async def upload_excel_file(
     file: UploadFile = File(...),
     session: Session = Depends(get_session)
 ):
-    period = PeriodService.get_by_id(cod_period, session)
-    if not period:
-        raise HTTPException(status_code=400, detail={
-            "error": f"El periodo con código {cod_period} no existe",
-            "message": "Verifique el código del periodo"
-        })
     PeriodService.get_required(cod_period, session)
     wb: Workbook = await readExcelFile(file)
     return process_file(wb, cod_period, session)

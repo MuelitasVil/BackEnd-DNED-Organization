@@ -83,8 +83,7 @@ from app.service.crud.headquarters_service import HeadquartersService
 
 from app.utils.app_logger import AppLogger
 
-logger = AppLogger(__file__)
-logger2 = AppLogger(__file__, "user_unit_association.log")
+logger = AppLogger(__file__, "case_estudiantes_activos.log")
 
 
 @dataclass
@@ -97,7 +96,7 @@ class Collections:
     unit_school_assocs: List[UnitSchoolAssociateInput]
     school_headquarters_assocs: List[SchoolHeadquartersAssociateInput]
     user_types: List[TypeUserInput]
-    type_user_unit_assocs: List[TypeUserAssociationInput]
+    type_user_assocs: List[TypeUserAssociationInput]
 
 
 @dataclass
@@ -111,7 +110,7 @@ class Seen:
     school_headquarters_assocs: Set[str]
     unit_with_school: Set[str]
     type_user_assocs: Set[str]
-    type_user_unit_assocs: Set[str]
+    user_types: Set[str]
 
 
 def case_estudiantes_activos(
@@ -135,7 +134,7 @@ def case_estudiantes_activos(
         unit_school_assocs=[],
         school_headquarters_assocs=[],
         user_types=[],
-        type_user_unit_assocs=[]
+        type_user_assocs=[]
     )
 
     seen = Seen(
@@ -147,8 +146,8 @@ def case_estudiantes_activos(
         unit_school_assocs=set(),
         school_headquarters_assocs=set(),
         unit_with_school=set(),
-        type_user_unit_assocs=set(),
-        user_types=set()
+        type_user_assocs=set(),
+        user_types=set(),
     )
 
     sorted_rows = _sort_rows_by_sede(
@@ -194,7 +193,7 @@ def _persist_collections(c: Collections, session: Session) -> Dict[str, Any]:
             session
         )
         resTypeUserUnitAssocs = TypeUserAssociationService.bulk_insert_ignore(
-            c.type_user_unit_assocs,
+            c.type_user_assocs,
             session
         )
 
@@ -244,7 +243,7 @@ def _excel_processing(
     """
     logger.info("Iniciando procesamiento de archivo de estudiantes activos")
     for row_idx, row in sorted_rows:
-        isSpecialHeadquarters: bool = False
+        isSpecialSchool: bool = False
         logger.debug(f"Procesando fila {row_idx}")
         logger.debug(f"Contenido de la fila: {[cell.value for cell in row]}")
 
@@ -259,7 +258,7 @@ def _excel_processing(
         _add_unit_to_collections(unit, seen, collections)
 
         school: SchoolInput
-        school, isSpecialHeadquarters = _get_school_from_row(row_tuple)
+        school, isSpecialSchool = _get_school_from_row(row_tuple)
         _add_school_to_collections(school, seen, collections)
 
         head: HeadquartersInput = _get_headquarters_from_row(row_tuple)
@@ -279,7 +278,7 @@ def _excel_processing(
             cod_period,
             seen,
             collections,
-            isSpecialHeadquarters
+            isSpecialSchool
         )
 
         _add_school_headquarters_to_collections(
@@ -307,7 +306,7 @@ def _add_user_to_collections(
     if not user.email_unal:
         return
 
-    if not is_unique_entity_in_set(seen.users(), user.email_unal):
+    if not is_unique_entity_in_set(seen.users, user.email_unal):
         return
 
     seen.users.add(user.email_unal)
@@ -322,7 +321,7 @@ def _add_unit_to_collections(
     if not unit.cod_unit:
         return
 
-    if not is_unique_entity_in_set(seen.units(), unit.cod_unit):
+    if not is_unique_entity_in_set(seen.units, unit.cod_unit):
         return
 
     seen.units.add(unit.cod_unit)
@@ -337,7 +336,7 @@ def _add_school_to_collections(
     if not school.cod_school:
         return
 
-    if not is_unique_entity_in_set(seen.schools(), school.cod_school):
+    if not is_unique_entity_in_set(seen.schools, school.cod_school):
         return
 
     seen.schools.add(school.cod_school)
@@ -353,7 +352,7 @@ def _add_headquarters_to_collections(
         return
 
     if not is_unique_entity_in_set(
-        seen.headquarters(), head.cod_headquarters
+        seen.headquarters, head.cod_headquarters
     ):
         return
 
@@ -396,7 +395,7 @@ def _add_unit_school_assoc_to_collections(
     cod_period: str,
     seen: Seen,
     collections: Collections,
-    isSpecialHeadquarters: bool
+    isSpecialSchool: bool
 ) -> None:
     """
     Importante: Los estudiantes de las sedes de presencia nacional
@@ -415,12 +414,12 @@ def _add_unit_school_assoc_to_collections(
     if not school.cod_school or not unit.cod_unit:
         return
 
-    if isSpecialHeadquarters:
+    if isSpecialSchool:
         logger.debug(
             "Sede de presencia nacional detectada"
         )
 
-    if isSpecialHeadquarters and unit.cod_unit in seen.unit_with_school:
+    if isSpecialSchool and unit.cod_unit in seen.unit_with_school:
         logger.debug(
             f"El plan {unit.cod_unit} esta asociado a una sede mas grande"
             f"de sede {school.cod_school}, por lo que no se agregará la "
@@ -428,7 +427,9 @@ def _add_unit_school_assoc_to_collections(
         )
         return
 
-    assoc_key = f"{unit.cod_unit}{school.cod_school}{cod_period}"
+    assoc_key = f"{unit.cod_unit}"
+    seen.unit_with_school.add(unit.cod_unit)
+
     if assoc_key in seen.unit_school_assocs:
         return
 
@@ -497,14 +498,14 @@ def _add_user_type_assoc_to_collections(
         return
 
     assoc_key = f"{user.email_unal}{type_user.name}{cod_period}"
-    if assoc_key in seen.type_user_unit_assocs:
+    if assoc_key in seen.type_user_assocs:
         return
 
-    seen.type_user_unit_assocs.add(assoc_key)
-    collections.type_user_unit_assocs.append(
+    seen.type_user_assocs.add(assoc_key)
+    collections.type_user_assocs.append(
         TypeUserAssociationInput(
             email_unal=user.email_unal,
-            type_user_id=type_user.name,
+            type_user_name=type_user.name,
             cod_period=cod_period
         )
     )
@@ -548,8 +549,8 @@ def _get_unit_from_row(row: Tuple[Cell, ...]) -> UnitUnalInput:
 
     cod_unit: str = get_value_from_row(row, EstudianteActivos.COD_PLAN.value)
     plan: str = get_value_from_row(row, EstudianteActivos.PLAN.value)
-    cod_unit = f"{cod_unit}_{tipoEstudiante}_{prefix_sede}"
-    email: str = f"{cod_unit}@unal.edu.co"
+    prefix_email = f"{cod_unit}_{tipoEstudiante}_{prefix_sede}"
+    email: str = f"{prefix_email}@unal.edu.co"
     return UnitUnalInput(
         cod_unit=cod_unit,
         email=email,
@@ -562,7 +563,7 @@ def _get_unit_from_row(row: Tuple[Cell, ...]) -> UnitUnalInput:
 def _get_school_from_row(
     row: Tuple[Cell, ...]
 ) -> Tuple[SchoolInput, bool]:
-    isSpecialHeadquarters: bool = False
+    isSpecialSchool: bool = False
     facultad: str = get_value_from_row(row, EstudianteActivos.FACULTAD.value)
     sede: str = get_value_from_row(row, EstudianteActivos.SEDE.value)
     tipoEstudiante: str = get_value_from_row(
@@ -582,13 +583,15 @@ def _get_school_from_row(
     cod_school: str = ""
     general_code: str = ""
     if EstActSedeEnum.is_special_sede(sede):
-        isSpecialHeadquarters = True
         cod_school = f"estf{tipoEstudiante}{prefix_sede}"
         general_code = f"estf{prefix_sede}"
     else:
         acronimo = get_acronimo(facultad)
         cod_school = f"est{acronimo}{tipoEstudiante}_{prefix_sede}"
         general_code = f"est{acronimo}_{prefix_sede}"
+
+    if EstActSedeEnum.is_special_sede(facultad):
+        isSpecialSchool = True
 
     email: str = f"{cod_school}@unal.edu.co"
 
@@ -599,7 +602,7 @@ def _get_school_from_row(
         description=None,
         general_code=general_code,
         type_user=get_type_user(tipoEstudiante)
-    ), isSpecialHeadquarters
+    ), isSpecialSchool
 
 
 def _get_headquarters_from_row(
@@ -692,7 +695,6 @@ def _sort_rows_by_sede(
         blank_or_incomplete_errors = validate_row_blank_or_incomplete(
             row,
             row_idx,
-            errors,
             EstudianteActivos
         )
 
@@ -735,6 +737,7 @@ def get_sort_rows_by_dict_sede(
     sorted_rows = []
     for order in sorted(sort_sede_dict.keys()):
         sorted_rows.extend(sort_sede_dict[order])
+    return sorted_rows
 
 
 def build_summary(c: Collections) -> Dict[str, Any]:
@@ -748,7 +751,7 @@ def build_summary(c: Collections) -> Dict[str, Any]:
         "cant_unit_school_assocs": len(c.unit_school_assocs),
         "cant_school_head_assocs": len(c.school_headquarters_assocs),
         "cant_type_user": len(c.user_types),
-        "cant_type_user_unit_assocs": len(c.type_user_unit_assocs),
+        "cant_type_user_assocs": len(c.type_user_assocs),
     }
 
 
@@ -756,3 +759,45 @@ def get_type_user(
     tipoEstudiante: str
 ) -> str:
     return f"Estudiante {tipoEstudiante.capitalize()}"
+
+
+def log_collections(c: Collections) -> None:
+    logger.info("Colecciones finales:")
+    for user in c.users:
+        logger.info(f"Usuario: {user.email_unal}, {user.full_name}")
+
+    for unit in c.units:
+        logger.info(f"Unidad: {unit.cod_unit}, {unit.name}")
+
+    for school in c.schools:
+        logger.info(f"Facultad: {school.cod_school}, {school.name}")
+
+    for head in c.headquarters:
+        logger.info(f"Sede: {head.cod_headquarters}, {head.name}")
+
+    for assoc in c.user_unit_assocs:
+        logger.info(
+            f"Asociación Usuario-Unidad: {assoc.email_unal} -> "
+            f"{assoc.cod_unit} para periodo {assoc.cod_period}"
+        )
+
+    for assoc in c.unit_school_assocs:
+        logger.info(
+            f"Asociación Unidad-Facultad: {assoc.cod_unit} -> "
+            f"{assoc.cod_school} para periodo {assoc.cod_period}"
+        )
+
+    for assoc in c.school_headquarters_assocs:
+        logger.info(
+            f"Asociación Facultad-Sede: {assoc.cod_school} -> "
+            f"{assoc.cod_headquarters} para periodo {assoc.cod_period}"
+        )
+
+    for type_user in c.user_types:
+        logger.info(f"Tipo de Usuario: {type_user.name}")
+
+    for assoc in c.type_user_assocs:
+        logger.info(
+            f"Asociación TipoUsuario-User: {assoc.type_user_name} -> "
+            f"{assoc.email_unal} para periodo {assoc.cod_period}"
+        )
