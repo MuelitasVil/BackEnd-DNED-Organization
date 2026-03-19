@@ -54,11 +54,6 @@ from app.service.excel_processor.utils.collection_utils import (
     is_unique_entity_in_set
 )
 
-from app.service.excel_processor.utils.error_utils import (
-    raise_if_errors
-)
-
-
 from app.service.excel_processor.utils.excel_validator import (
     get_value_from_row,
     is_header_row,
@@ -96,7 +91,7 @@ class Collections:
     unit_school_assocs: List[UnitSchoolAssociateInput]
     school_headquarters_assocs: List[SchoolHeadquartersAssociateInput]
     user_types: List[TypeUserInput]
-    type_user_unit_assocs: List[TypeUserAssociationInput]
+    type_user_assocs: List[TypeUserAssociationInput]
 
 
 @dataclass
@@ -110,7 +105,7 @@ class Seen:
     school_headquarters_assocs: Set[str]
     unit_with_school: Set[str]
     type_user_assocs: Set[str]
-    type_user_unit_assocs: Set[str]
+    user_types: Set[str]
 
 
 def case_administrativos_activos(
@@ -134,7 +129,7 @@ def case_administrativos_activos(
         unit_school_assocs=[],
         school_headquarters_assocs=[],
         user_types=[],
-        type_user_unit_assocs=[]
+        type_user_assocs=[]
     )
 
     seen = Seen(
@@ -146,7 +141,7 @@ def case_administrativos_activos(
         unit_school_assocs=set(),
         school_headquarters_assocs=set(),
         unit_with_school=set(),
-        type_user_unit_assocs=set(),
+        type_user_assocs=set(),
         user_types=set()
     )
 
@@ -185,7 +180,6 @@ def _excel_processing(
         blank_or_incomplete_errors = validate_row_blank_or_incomplete(
             row,
             row_idx,
-            errors,
             FuncionariosActivos
         )
 
@@ -193,7 +187,6 @@ def _excel_processing(
             errors.extend(blank_or_incomplete_errors)
             continue
 
-        isSpecialHeadquarters: bool = False
         logger.debug(f"Procesando fila {row_idx}")
         logger.debug(f"Contenido de la fila: {[cell.value for cell in row]}")
 
@@ -208,7 +201,7 @@ def _excel_processing(
         _add_unit_to_collections(unit, seen, collections)
 
         school: SchoolInput
-        school, isSpecialHeadquarters = _get_school_from_row(row_tuple)
+        school = _get_school_from_row(row_tuple)
         _add_school_to_collections(school, seen, collections)
 
         head: HeadquartersInput = _get_headquarters_from_row(row_tuple)
@@ -227,8 +220,7 @@ def _excel_processing(
             school,
             cod_period,
             seen,
-            collections,
-            isSpecialHeadquarters
+            collections
         )
 
         _add_school_headquarters_to_collections(
@@ -246,7 +238,6 @@ def _excel_processing(
             seen,
             collections
         )
-    raise_if_errors(errors)
 
 
 def _persist_collections(c: Collections, session: Session) -> Dict[str, Any]:
@@ -275,7 +266,7 @@ def _persist_collections(c: Collections, session: Session) -> Dict[str, Any]:
             session
         )
         resTypeUserUnitAssocs = TypeUserAssociationService.bulk_insert_ignore(
-            c.type_user_unit_assocs,
+            c.type_user_assocs,
             session
         )
 
@@ -320,7 +311,7 @@ def _add_user_to_collections(
     if not user.email_unal:
         return
 
-    if not is_unique_entity_in_set(seen.users(), user.email_unal):
+    if not is_unique_entity_in_set(seen.users, user.email_unal):
         return
 
     seen.users.add(user.email_unal)
@@ -335,7 +326,7 @@ def _add_unit_to_collections(
     if not unit.cod_unit:
         return
 
-    if not is_unique_entity_in_set(seen.units(), unit.cod_unit):
+    if not is_unique_entity_in_set(seen.units, unit.cod_unit):
         return
 
     seen.units.add(unit.cod_unit)
@@ -350,7 +341,7 @@ def _add_school_to_collections(
     if not school.cod_school:
         return
 
-    if not is_unique_entity_in_set(seen.schools(), school.cod_school):
+    if not is_unique_entity_in_set(seen.schools, school.cod_school):
         return
 
     seen.schools.add(school.cod_school)
@@ -366,7 +357,7 @@ def _add_headquarters_to_collections(
         return
 
     if not is_unique_entity_in_set(
-        seen.headquarters(), head.cod_headquarters
+        seen.headquarters, head.cod_headquarters
     ):
         return
 
@@ -408,8 +399,7 @@ def _add_unit_school_assoc_to_collections(
     school: SchoolInput,
     cod_period: str,
     seen: Seen,
-    collections: Collections,
-    isSpecialHeadquarters: bool
+    collections: Collections
 ) -> None:
     """
     Importante: Los estudiantes de las sedes de presencia nacional
@@ -426,19 +416,6 @@ def _add_unit_school_assoc_to_collections(
     """
 
     if not school.cod_school or not unit.cod_unit:
-        return
-
-    if isSpecialHeadquarters:
-        logger.debug(
-            "Sede de presencia nacional detectada"
-        )
-
-    if isSpecialHeadquarters and unit.cod_unit in seen.unit_with_school:
-        logger.debug(
-            f"El plan {unit.cod_unit} esta asociado a una sede mas grande"
-            f"de sede {school.cod_school}, por lo que no se agregará la "
-            f"asociación a colecciones para evitar duplicados."
-        )
         return
 
     assoc_key = f"{unit.cod_unit}{school.cod_school}{cod_period}"
@@ -491,11 +468,11 @@ def _add_type_user_to_collections(
         return
 
     if not is_unique_entity_in_set(
-        seen.type_user_assocs, type_user.name
+        seen.user_types, type_user.name
     ):
         return
 
-    seen.type_user_assocs.add(type_user.name)
+    seen.user_types.add(type_user.name)
     collections.user_types.append(type_user)
 
 
@@ -510,14 +487,14 @@ def _add_user_type_assoc_to_collections(
         return
 
     assoc_key = f"{user.email_unal}{type_user.name}{cod_period}"
-    if assoc_key in seen.type_user_unit_assocs:
+    if assoc_key in seen.type_user_assocs:
         return
 
-    seen.type_user_unit_assocs.add(assoc_key)
-    collections.type_user_unit_assocs.append(
+    seen.type_user_assocs.add(assoc_key)
+    collections.type_user_assocs.append(
         TypeUserAssociationInput(
             email_unal=user.email_unal,
-            type_user_id=type_user.name,
+            type_user_name=type_user.name,
             cod_period=cod_period
         )
     )
@@ -549,7 +526,7 @@ def _get_unit_from_row(row: Tuple[Cell, ...]) -> UnitUnalInput:
     prefix_sede = get_prefix_sede(sede)
     unit = get_value_from_row(row, FuncionariosActivos.UNIDAD.value)
     nombre_vinculacion = get_value_from_row(
-        row, FuncionariosActivos.NOMBRE_VINCULACION.value
+        row, FuncionariosActivos.NOMBRE_CARGO.value
     )
     cod_unit: str = f"{get_abreviatura(unit)}_{prefix_sede}"
     email: str = f"{cod_unit}@unal.edu.co"
@@ -558,8 +535,8 @@ def _get_unit_from_row(row: Tuple[Cell, ...]) -> UnitUnalInput:
         cod_unit=cod_unit,
         email=email,
         name=unit,
-        description=nombre_vinculacion,
-        type_user=None,
+        description=None,
+        type_user=nombre_vinculacion,
     )
 
 
@@ -630,14 +607,14 @@ def build_summary(c: Collections) -> Dict[str, Any]:
         "cant_unit_school_assocs": len(c.unit_school_assocs),
         "cant_school_head_assocs": len(c.school_headquarters_assocs),
         "cant_type_user": len(c.user_types),
-        "cant_type_user_unit_assocs": len(c.type_user_unit_assocs)
+        "cant_type_user_assocs": len(c.type_user_assocs)
     }
 
 
 def get_prefix_sede(sede: str) -> str:
     prefix_sede: str = sede.split(" ")[0][:3].lower()
     if sede == FunSedeEnum.SEDE_DE_LA_PAZ.file_name:
-        prefix_sede = sede.split(" ")[1][:3].lower()
+        prefix_sede = sede.split(" ")[2][:3].lower()
     elif sede == FunSedeEnum.NACIONAL.file_name:
         prefix_sede = sede.split(" ")[1][:3].lower()
 

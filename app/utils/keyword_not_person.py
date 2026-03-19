@@ -1,4 +1,4 @@
-import unicodedata
+from app.utils.string_utils import normalize_text
 
 
 keywords_not_person = {
@@ -407,13 +407,6 @@ keywords_not_person = {
     "a",
     "a."
 }
-
-
-def normalize_text(text: str) -> str:
-    text = text.lower().strip()
-    text = unicodedata.normalize("NFKD", text)
-    text = "".join(c for c in text if not unicodedata.combining(c))
-    return text
 
 
 def get_first_word(text: str) -> str:

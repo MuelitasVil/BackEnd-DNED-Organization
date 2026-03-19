@@ -479,11 +479,11 @@ def _add_type_user_to_collections(
         return
 
     if not is_unique_entity_in_set(
-        seen.type_user_assocs, type_user.name
+        seen.user_types, type_user.name
     ):
         return
 
-    seen.type_user_assocs.add(type_user.name)
+    seen.user_types.add(type_user.name)
     collections.user_types.append(type_user)
 
 

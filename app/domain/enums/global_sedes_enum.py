@@ -1,5 +1,7 @@
 from enum import Enum
 
+from app.utils.string_utils import normalize_text
+
 
 # Sedes de presencial nacional.
 SPECIAL_SEDES = {
@@ -43,7 +45,7 @@ class GlobalSedeEnum(Enum):
 
     @classmethod
     def is_special_sede(self, sede: str) -> bool:
-        return sede in SPECIAL_SEDES
+        return normalize_text(sede) in SPECIAL_SEDES
 
     @classmethod
     def get_by_name(self, name: str):
