@@ -51,7 +51,7 @@ class AuthService:
             Token(
                 jwt_token=jwt_token,
                 email=user.email,
-                created_at=datetime.utcnow()
+                created_at=datetime.now(timezone.utc)
             )
         )
         return jwt_token

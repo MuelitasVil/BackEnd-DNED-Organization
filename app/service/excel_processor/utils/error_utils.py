@@ -1,5 +1,7 @@
-from http.client import HTTPException
+from fastapi import HTTPException
 from typing import Dict, Any, List
+
+MAX_ERRORS_IN_RESPONSE = 25
 
 
 def add_blank_row_error(
@@ -40,8 +42,11 @@ def add_invalid_headquarters_error(
 
 def raise_if_errors(errors: List[Dict[str, Any]]):
     """Lanza HTTPException si hay errores en la lista."""
-    if errors:
-        raise HTTPException(status_code=400, detail={
-            "status": False,
-            "errors": errors[0:25]
-        })
+    if not errors or len(errors) == 0:
+        return
+
+    raise HTTPException(status_code=400, detail={
+        "status": False,
+        "errors": errors[:MAX_ERRORS_IN_RESPONSE],
+        "total_errors": len(errors)
+    })

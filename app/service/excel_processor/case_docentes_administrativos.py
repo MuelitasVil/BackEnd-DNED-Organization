@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from http.client import HTTPException
+from fastapi import HTTPException
 from typing import Dict, Any, List, Tuple, Set
 from openpyxl.worksheet.worksheet import Worksheet
 from openpyxl.cell.cell import Cell
@@ -78,7 +78,6 @@ from app.service.crud.headquarters_service import HeadquartersService
 from app.utils.app_logger import AppLogger
 
 logger = AppLogger(__file__)
-logger2 = AppLogger(__file__, "user_unit_association.log")
 
 
 @dataclass

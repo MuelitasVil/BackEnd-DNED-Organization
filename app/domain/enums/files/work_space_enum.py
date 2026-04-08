@@ -12,14 +12,14 @@ SUSPENDED = "Suspended"
 
 
 class WorkSpace(Enum):
-    FIRST_NAME = "First Name [Required]"
-    LAST_NAME = "Last Name [Required]V"
-    EMAIL = "Email Address [Required]"
-    STATUS = "Status [READ ONLY]"
-    LAST_SING_IN = "Last Sign In [READ ONLY]"
-    EMAIL_USAGE = "Email Usage [READ ONLY]"
-    STORAGE_USED = "Storage Used [READ ONLY]"
-    STORAGE_LIMIT = "Storage limit [READ ONLY]"
+    FIRST_NAME = 1
+    LAST_NAME = 2
+    EMAIL = 3
+    STATUS = 4
+    LAST_SING_IN = 5
+    EMAIL_USAGE = 6
+    STORAGE_USED = 7
+    STORAGE_LIMIT = 8
 
     @classmethod
     def validate_headers(self, headers: List[str]) -> bool:
@@ -29,15 +29,25 @@ class WorkSpace(Enum):
         """
 
         normalized_headers = {normalize_header(h) for h in headers if h}
-        enum_headers = {e.name for e in self}
+        enum_headers = {normalize_header(e.name) for e in self}
+
+        print(f"Normalized Headers: {normalized_headers}")
+        print(f"Enum Headers: {enum_headers}")
 
         return enum_headers.issubset(normalized_headers)
 
-    def is_never_logged_in(self) -> bool:
-        return self.STATUS.value == NEVER_LOG_IN
+    def is_never_logged_in(value) -> bool:
+        return value == NEVER_LOG_IN
 
-    def is_active(self) -> bool:
-        return self.STATUS.value == ACTIVE
+    def is_active(value) -> bool:
+        return value == ACTIVE
 
-    def is_suspended(self) -> bool:
-        return self.STATUS.value == SUSPENDED
+    def is_suspended(value) -> bool:
+        return value == SUSPENDED
+
+    def get_status_value(value) -> bool:
+        if WorkSpace.is_active(value):
+            return True
+        else:
+            return False
+

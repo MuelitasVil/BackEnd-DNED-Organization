@@ -21,6 +21,12 @@ class UserUnalRepository:
             .all()
         )
 
+    def get_by_emails(self, emails: List[str]) -> List[UserUnal]:
+        if not emails:
+            return []
+        statement = select(UserUnal).where(UserUnal.email_unal.in_(emails))
+        return self.session.exec(statement).all()
+
     def get_by_email(self, email_unal: str) -> Optional[UserUnal]:
         return self.session.get(UserUnal, email_unal)
 

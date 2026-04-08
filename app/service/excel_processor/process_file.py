@@ -7,6 +7,10 @@ from app.domain.enums.files.funcionarios_activos_enum import (
     FuncionariosActivos
 )
 
+from app.domain.enums.files.work_space_enum import WorkSpace
+from app.service.excel_processor.case_work_space import (
+    case_work_space
+)
 from app.service.excel_processor.case_estudiantes_activos import (
     case_estudiantes_activos
 )
@@ -30,6 +34,9 @@ def process_file(file: Workbook, cod_period: str, session: Session):
 
     if FuncionariosActivos.validate_headers(headers):
         return case_administrativos_activos(ws, cod_period, session)
+
+    if WorkSpace.validate_headers(headers):
+        return case_work_space(ws, cod_period, session)
 
     raise InvalidExcelStructureError(ws.title, headers)
 

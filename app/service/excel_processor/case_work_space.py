@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 import datetime
-from http.client import HTTPException
+from fastapi import HTTPException
 from typing import Dict, Any, List, Optional, Tuple
 from openpyxl.worksheet.worksheet import Worksheet
 from openpyxl.cell.cell import Cell
@@ -40,7 +40,7 @@ from app.utils.app_logger import AppLogger
 from app.utils.keyword_not_person import verify_is_person
 
 logger = AppLogger(__file__)
-logger2 = AppLogger(__file__, "user_unit_association.log")
+logger2 = AppLogger(__file__, "user_workspace_users.log")
 
 
 @dataclass
@@ -48,7 +48,7 @@ class Collections:
     data_work_space: List[UserWorkspaceInput]
 
 
-def case_administrativos_activos(
+def case_work_space(
     ws: Worksheet,
     cod_period: str,
     session: Session
@@ -59,7 +59,9 @@ def case_administrativos_activos(
     - Devuelve resumen: status, errores, conteos y previews.
     """
     errors: List[Dict[str, Any]] = []
-    all_users: Dict[str, UserUnal] = _get_all_users(session)
+    all_users: Dict[str, UserUnal] = _get_all_users(session, cod_period)
+    for user in all_users.values():
+        logger2.info(f"Usuario en DB: {user.email_unal} - {user.name}")
 
     collections = Collections(
         data_work_space=[]
@@ -90,7 +92,8 @@ def _excel_processing(
      - rows: Lista de tuplas con el índice de fila y el contenido de la fila.
     """
     logger.info(
-        "Iniciando procesamiento de archivo de docentes administrativos"
+        "Iniciando procesamiento de archivo worksapce para periodo: %s",
+        cod_period
     )
 
     for row_idx, row in enumerate(ws.iter_rows(), start=1):
@@ -101,7 +104,6 @@ def _excel_processing(
         blank_or_incomplete_errors = validate_row_blank_or_incomplete(
             row,
             row_idx,
-            errors,
             WorkSpace
         )
 
@@ -138,7 +140,7 @@ def _get_work_space_from_row(
     return UserWorkspaceInput(
         email_unal=(email or None),
         last_connection=_get_date_time(last_connection or None),
-        status=(status or None),
+        status=(WorkSpace.get_status_value(status)),
         email_usage=_get_float(email_usage or None),
         storage_used=_get_float(storage_used or None),
         storage_limit=_get_float(storage_limit or None),
@@ -162,7 +164,8 @@ def _persist_collections(c: Collections, session: Session) -> Dict[str, Any]:
         logger.error(f"Detalles del error: {e}")
         raise HTTPException(status_code=500, detail={
             "status": False,
-            "message": "Error interno durante la inserción de datos."
+            "message": "Error interno durante la inserción de datos.",
+            "details": str(e)
         })
 
 
@@ -181,24 +184,19 @@ def log_persist_results(
 def build_summary(c: Collections) -> Dict[str, Any]:
     return {
         "status": True,
-        "cant_users": len(c.users),
-        "cant_units": len(c.units),
-        "cant_schools": len(c.schools),
-        "cant_headquarters": len(c.headquarters),
-        "cant_user_unit_assocs": len(c.user_unit_assocs),
-        "cant_unit_school_assocs": len(c.unit_school_assocs),
-        "cant_school_head_assocs": len(c.school_headquarters_assocs),
-        "cant_type_user": len(c.user_types),
-        "cant_type_user_unit_assocs": len(c.type_user_unit_assocs)
+        "cant_users": len(c.data_work_space),
     }
 
 
-def _get_all_users(session: Session) -> dict[str, UserUnal]:
-    all_users = UserUnalService.get_all_no_pagination(session)
+def _get_all_users(session: Session, cod_period: str) -> dict[str, UserUnal]:
+    all_users = UserUnalService.get_all_by_period(cod_period, session)
     if not all_users or len(all_users) == 0:
         raise HTTPException(status_code=400, detail={
             "status": False,
-            "message": "No se encontraron usuarios en la base de datos."
+            "message": (
+                "No se encontraron usuarios asociados al periodo"
+                f" {cod_period}."
+            )
         })
     return {user.email_unal: user for user in all_users}
 
@@ -238,6 +236,6 @@ def validate_is_person(
 ) -> bool:
     if not name:
         return False
-    if email in users:
-        return True
+    if email not in users:
+        return False
     return verify_is_person(name)

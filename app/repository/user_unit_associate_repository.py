@@ -39,6 +39,17 @@ class UserUnitAssociateRepository:
         )
         return self.session.exec(statement).all()
 
+    def get_distinct_user_emails_by_period(
+        self,
+        cod_period: str
+    ) -> List[str]:
+        statement = (
+            select(UserUnitAssociate.email_unal)
+            .where(UserUnitAssociate.cod_period == cod_period)
+            .distinct()
+        )
+        return list(self.session.exec(statement).all())
+
     def get_by_keys(
         self,
         email_unal: str,

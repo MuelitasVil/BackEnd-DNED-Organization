@@ -5,7 +5,6 @@ USE dned;
 
 -- Eliminar las tablas si existen
 
-DROP TABLE IF EXISTS user_workspace_associate;
 DROP TABLE IF EXISTS user_unit_associate;
 DROP TABLE IF EXISTS unit_school_associate;
 DROP TABLE IF EXISTS school_headquarters_associate;
@@ -46,6 +45,7 @@ CREATE TABLE IF NOT EXISTS user_workspace (
     storage_limit FLOAT NULL,
     is_person BOOLEAN NOT NULL DEFAULT FALSE,
     cod_period VARCHAR(50) NOT NULL,
+    created_input DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_uwa_period
         FOREIGN KEY (cod_period) REFERENCES period(cod_period)
         ON DELETE RESTRICT ON UPDATE CASCADE,

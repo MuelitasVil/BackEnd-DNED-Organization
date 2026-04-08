@@ -1,5 +1,8 @@
 from typing import List, Optional
 from app.repository.user_unal_repository import UserUnalRepository
+from app.repository.user_unit_associate_repository import (
+    UserUnitAssociateRepository,
+)
 from app.domain.models.user_unal import UserUnal
 from app.domain.dtos.user_unal.user_unal_input import UserUnalInput
 from sqlmodel import Session
@@ -27,6 +30,14 @@ class UserUnalService:
             users.extend(batch)
             start += limit
         return users
+
+    @staticmethod
+    def get_all_by_period(cod_period: str, session: Session) -> List[UserUnal]:
+        associated_emails = (
+            UserUnitAssociateRepository(session)
+            .get_distinct_user_emails_by_period(cod_period)
+        )
+        return UserUnalRepository(session).get_by_emails(associated_emails)
 
     @staticmethod
     def get_by_email(email_unal: str, session: Session) -> Optional[UserUnal]:

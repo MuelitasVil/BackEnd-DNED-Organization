@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from http.client import HTTPException
+from fastapi import HTTPException
 from typing import Dict, Any, List, Tuple, Set
 from openpyxl.worksheet.worksheet import Worksheet
 from openpyxl.cell.cell import Cell
@@ -296,6 +296,8 @@ def _excel_processing(
             seen,
             collections
         )
+
+    raise_if_errors(errors)
 
 
 def _add_user_to_collections(

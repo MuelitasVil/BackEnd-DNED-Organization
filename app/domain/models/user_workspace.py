@@ -1,5 +1,5 @@
 from sqlmodel import SQLModel, Field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 
@@ -15,3 +15,6 @@ class UserWorkspace(SQLModel, table=True):
     storage_limit: Optional[float] = None
     is_person: bool = False
     cod_period: Optional[str] = None
+    created_input: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc)
+    )
