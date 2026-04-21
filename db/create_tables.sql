@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS user_workspace (
     storage_used FLOAT NULL,
     storage_limit FLOAT NULL,
     is_person BOOLEAN NOT NULL DEFAULT FALSE,
+    is_active_in_period BOOLEAN NOT NULL DEFAULT FALSE,
     cod_period VARCHAR(50) NOT NULL,
     created_input DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_uwa_period

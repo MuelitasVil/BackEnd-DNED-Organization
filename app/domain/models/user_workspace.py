@@ -14,6 +14,7 @@ class UserWorkspace(SQLModel, table=True):
     storage_used: Optional[float] = None
     storage_limit: Optional[float] = None
     is_person: bool = False
+    is_active_in_period: bool = False
     cod_period: Optional[str] = None
     created_input: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc)

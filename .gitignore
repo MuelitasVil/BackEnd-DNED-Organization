@@ -21,6 +21,9 @@ __pycache__/
 # Logs
 *.log
 
+# excels
+*.xlsx
+
 # Installer logs
 pip-log.txt
 pip-delete-this-directory.txt

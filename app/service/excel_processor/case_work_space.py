@@ -59,7 +59,13 @@ def case_work_space(
     - Devuelve resumen: status, errores, conteos y previews.
     """
     errors: List[Dict[str, Any]] = []
-    all_users: Dict[str, UserUnal] = _get_all_users(session, cod_period)
+    all_users: Dict[str, UserUnal] = _get_all_users(session)
+    period_users = _get_period_users(session, cod_period)
+    active_users_period: set[str] = {
+        _normalize_email(user.email_unal)
+        for user in period_users
+        if user.email_unal
+    }
     for user in all_users.values():
         logger2.info(f"Usuario en DB: {user.email_unal} - {user.name}")
 
@@ -72,6 +78,7 @@ def case_work_space(
         collections,
         cod_period,
         all_users,
+        active_users_period,
         errors,
     )
     results = _persist_collections(collections, session)
@@ -85,6 +92,7 @@ def _excel_processing(
     collections: Collections,
     cod_period: str,
     all_users: Dict[str, UserUnal],
+    active_users_period: set[str],
     errors: List[Dict[str, Any]] = [],
 ) -> None:
     """
@@ -114,7 +122,8 @@ def _excel_processing(
         work_space: UserWorkspaceInput = _get_work_space_from_row(
             row,
             cod_period,
-            all_users
+            all_users,
+            active_users_period,
         )
         collections.data_work_space.append(work_space)
 
@@ -125,9 +134,10 @@ def _excel_processing(
 
 
 def _get_work_space_from_row(
-        row: Tuple[Cell, ...],
-        cod_period: str,
-        users: Dict[str, UserUnal]
+    row: Tuple[Cell, ...],
+    cod_period: str,
+    users: Dict[str, UserUnal],
+    active_users_period: set[str],
 ) -> UserWorkspaceInput:
     email = get_value_from_row(row, WorkSpace.EMAIL.value)
     last_connection = get_value_from_row(row, WorkSpace.LAST_SING_IN.value)
@@ -137,6 +147,7 @@ def _get_work_space_from_row(
     storage_limit = get_value_from_row(row, WorkSpace.STORAGE_LIMIT.value)
     name = get_value_from_row(row, WorkSpace.FIRST_NAME.value)
     is_user = validate_is_person(name, email, users)
+    is_active_in_period = _normalize_email(email) in active_users_period
     return UserWorkspaceInput(
         email_unal=(email or None),
         last_connection=_get_date_time(last_connection or None),
@@ -145,6 +156,7 @@ def _get_work_space_from_row(
         storage_used=_get_float(storage_used or None),
         storage_limit=_get_float(storage_limit or None),
         is_person=is_user,
+        is_active_in_period=is_active_in_period,
         cod_period=cod_period,
     )
 
@@ -188,17 +200,28 @@ def build_summary(c: Collections) -> Dict[str, Any]:
     }
 
 
-def _get_all_users(session: Session, cod_period: str) -> dict[str, UserUnal]:
-    all_users = UserUnalService.get_all_by_period(cod_period, session)
+def _get_all_users(session: Session) -> dict[str, UserUnal]:
+    all_users = UserUnalService.get_all_no_pagination(session)
     if not all_users or len(all_users) == 0:
         raise HTTPException(status_code=400, detail={
             "status": False,
-            "message": (
-                "No se encontraron usuarios asociados al periodo"
-                f" {cod_period}."
-            )
+            "message": "No se encontraron usuarios registrados."
         })
-    return {user.email_unal: user for user in all_users}
+    return {
+        _normalize_email(user.email_unal): user
+        for user in all_users
+        if user.email_unal
+    }
+
+
+def _get_period_users(session: Session, cod_period: str) -> List[UserUnal]:
+    return UserUnalService.get_all_by_period(cod_period, session)
+
+
+def _normalize_email(value: Optional[str]) -> str:
+    if not value:
+        return ""
+    return str(value).strip().lower()
 
 
 def _get_date_time(value: str) -> Optional[datetime.datetime]:
@@ -236,6 +259,6 @@ def validate_is_person(
 ) -> bool:
     if not name:
         return False
-    if email not in users:
+    if _normalize_email(email) not in users:
         return False
     return verify_is_person(name)
