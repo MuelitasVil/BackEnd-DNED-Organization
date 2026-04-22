@@ -83,6 +83,7 @@ def test_excel_processing_sets_is_person_from_validation(monkeypatch):
         collections=collections,
         cod_period="2025-1",
         all_users=all_users,
+        active_users_period={"ana@unal.edu.co"},
         errors=errors,
     )
 

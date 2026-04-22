@@ -111,6 +111,7 @@ class Seen:
     unit_with_school: Set[str]
     type_user_assocs: Set[str]
     user_types: Set[str]
+    primary_unit_by_base: Dict[str, UnitUnalInput]
 
 
 def case_estudiantes_activos(
@@ -148,6 +149,7 @@ def case_estudiantes_activos(
         unit_with_school=set(),
         type_user_assocs=set(),
         user_types=set(),
+        primary_unit_by_base={},
     )
 
     sorted_rows = _sort_rows_by_sede(
@@ -255,7 +257,7 @@ def _excel_processing(
         _add_type_user_to_collections(type_user, seen, collections)
 
         unit: UnitUnalInput = _get_unit_from_row(row_tuple)
-        _add_unit_to_collections(unit, seen, collections)
+        unit = _add_unit_to_collections(unit, seen, collections)
 
         school: SchoolInput
         school, isSpecialSchool = _get_school_from_row(row_tuple)
@@ -319,15 +321,23 @@ def _add_unit_to_collections(
     unit: UnitUnalInput,
     seen: Seen,
     collections: Collections
-) -> None:
+) -> UnitUnalInput:
     if not unit.cod_unit:
-        return
+        return unit
+
+    unit_base_key = _get_unit_base_key(unit.cod_unit)
+    primary_unit = seen.primary_unit_by_base.get(unit_base_key)
+    if primary_unit is not None:
+        return primary_unit
+
+    seen.primary_unit_by_base[unit_base_key] = unit
 
     if not is_unique_entity_in_set(seen.units, unit.cod_unit):
-        return
+        return unit
 
     seen.units.add(unit.cod_unit)
     collections.units.append(unit)
+    return unit
 
 
 def _add_school_to_collections(
@@ -414,6 +424,15 @@ def _add_unit_school_assoc_to_collections(
     """
 
     if not school.cod_school or not unit.cod_unit:
+        return
+
+    unit_base_key = _get_unit_base_key(unit.cod_unit)
+    primary_unit = seen.primary_unit_by_base.get(unit_base_key)
+    if primary_unit is not None and primary_unit.cod_unit != unit.cod_unit:
+        logger.debug(
+            f"Se omite asociación plan-facultad para unidad no prioritaria "
+            f"{unit.cod_unit}. Se conserva {primary_unit.cod_unit}."
+        )
         return
 
     if isSpecialSchool:
@@ -540,19 +559,12 @@ def _get_unit_from_row(row: Tuple[Cell, ...]) -> UnitUnalInput:
         row, EstudianteActivos.TIPO_NIVEL.value
     )
 
-    if tipoEstudiante == General_Values.PREGRADO.value:
-        tipoEstudiante = "pre"
-    elif tipoEstudiante == General_Values.POSGRADO.value:
-        tipoEstudiante = "pos"
-
-    prefix_sede: str = sede.split(" ")[1][:3].lower()
-    if sede == EstActSedeEnum.SEDE_DE_LA_PAZ._name:
-        prefix_sede = sede.split(" ")[3][:3].lower()
-
+    prefix_type_user: str = _normalize_tipo_estudiante(tipoEstudiante)
+    prefix_sede: str = _get_prefix_sede(sede)
     cod_unit: str = get_value_from_row(row, EstudianteActivos.COD_PLAN.value)
     plan: str = get_value_from_row(row, EstudianteActivos.PLAN.value)
-    prefix_email = f"{cod_unit}_{tipoEstudiante}_{prefix_sede}"
-    email: str = f"{prefix_email}@unal.edu.co"
+    cod_unit = f"{cod_unit}_{prefix_sede}_{prefix_type_user}"
+    email: str = f"{cod_unit}@unal.edu.co"
     return UnitUnalInput(
         cod_unit=cod_unit,
         email=email,
@@ -571,26 +583,15 @@ def _get_school_from_row(
     tipoEstudiante: str = get_value_from_row(
         row, EstudianteActivos.TIPO_NIVEL.value
     )
-    prefix_sede: str = sede.split(" ")[1][:3].lower()
+    prefix_sede: str = _get_prefix_sede(sede)
+    prefix_type_user: str = _normalize_tipo_estudiante(tipoEstudiante)
 
-    logger.debug(f"Facultad: {facultad}, Sede: {sede}, Tipo: {tipoEstudiante}")
-
-    if tipoEstudiante == General_Values.PREGRADO.value:
-        logger.debug("Tipo de estudiante es pregrado")
-        tipoEstudiante = "pre"
-    elif tipoEstudiante == General_Values.POSGRADO.value:
-        logger.debug("Tipo de estudiante es posgrado")
-        tipoEstudiante = "pos"
-
-    cod_school: str = ""
-    general_code: str = ""
-    if EstActSedeEnum.is_special_sede(sede):
-        cod_school = f"estf{tipoEstudiante}{prefix_sede}"
-        general_code = f"estf{prefix_sede}"
-    else:
-        acronimo = get_acronimo(facultad)
-        cod_school = f"est{acronimo}{tipoEstudiante}_{prefix_sede}"
-        general_code = f"est{acronimo}_{prefix_sede}"
+    cod_school, general_code = get_codes_school(
+        facultad,
+        sede,
+        prefix_type_user,
+        prefix_sede
+    )
 
     if EstActSedeEnum.is_special_sede(facultad):
         isSpecialSchool = True
@@ -600,7 +601,7 @@ def _get_school_from_row(
     return SchoolInput(
         cod_school=cod_school,
         email=email,
-        name=facultad or None,
+        name=get_name_type_user(facultad) or None,
         description=None,
         general_code=general_code,
         type_user=get_type_user(tipoEstudiante)
@@ -615,16 +616,9 @@ def _get_headquarters_from_row(
         row, EstudianteActivos.TIPO_NIVEL.value
     )
 
-    if tipoEstudiante == General_Values.PREGRADO.value:
-        tipoEstudiante = "pre"
-    elif tipoEstudiante == General_Values.POSGRADO.value:
-        tipoEstudiante = "pos"
-
-    prefix_sede: str = sede.split(" ")[1][:3].lower()
-    if sede == EstActSedeEnum.SEDE_DE_LA_PAZ._name:
-        prefix_sede = sede.split(" ")[3][:3].lower()
-
-    cod_sede: str = f"estudiante{tipoEstudiante}_{prefix_sede}"
+    prefix_type_user: str = _normalize_tipo_estudiante(tipoEstudiante)
+    prefix_sede: str = _get_prefix_sede(sede)
+    cod_sede: str = f"estudiante{prefix_type_user}_{prefix_sede}"
     general_code: str = f"estudiante_{prefix_sede}"
 
     email: str = f"{cod_sede}@unal.edu.co"
@@ -632,7 +626,7 @@ def _get_headquarters_from_row(
     return HeadquartersInput(
         cod_headquarters=cod_sede,
         email=email,
-        name=sede,
+        name=get_name_type_user(sede) or None,
         description=None,
         general_code=general_code,
         type_user=get_type_user(tipoEstudiante)
@@ -644,16 +638,57 @@ def __get_type_user_from_row(row: Tuple[Cell, ...]) -> TypeUserInput:
         row, EstudianteActivos.TIPO_NIVEL.value
     )
 
-    if tipoEstudiante == General_Values.PREGRADO.value:
-        tipoEstudiante = "pregrado"
-    elif tipoEstudiante == General_Values.POSGRADO.value:
-        tipoEstudiante = "posgrado"
-
     type_user: str = get_type_user(tipoEstudiante)
 
     return TypeUserInput(
         name=type_user,
         description=None
+    )
+
+
+def _normalize_tipo_estudiante(tipo_estudiante: str) -> str:
+    if tipo_estudiante == General_Values.PREGRADO.value:
+        return "pre"
+
+    if tipo_estudiante == General_Values.POSGRADO.value:
+        return "pos"
+
+    return tipo_estudiante
+
+
+def _get_prefix_sede(sede: str) -> str:
+    prefix_sede: str = sede.split(" ")[1][:3].lower()
+    if sede == EstActSedeEnum.SEDE_DE_LA_PAZ._name:
+        prefix_sede = sede.split(" ")[3][:3].lower()
+    return prefix_sede
+
+
+def _get_unit_base_key(cod_unit: str) -> str:
+    # cod_unit is expected as <base>_<prefix_sede>_<tipo>
+    parts = cod_unit.rsplit("_", 2)
+    if len(parts) < 3:
+        return cod_unit
+
+    base, _, tipo_estudiante = parts
+    return f"{base}_{tipo_estudiante}"
+
+
+def get_codes_school(
+    facultad: str,
+    sede: str,
+    prefix_type_user: str,
+    prefix_sede: str
+) -> Tuple[str, str]:
+    if EstActSedeEnum.is_special_sede(sede):
+        return (
+            f"estf{prefix_type_user}{prefix_sede}",
+            f"estf{prefix_sede}"
+        )
+
+    acronimo = get_acronimo(facultad)
+    return (
+        f"est{acronimo}{prefix_type_user}_{prefix_sede}",
+        f"est{acronimo}_{prefix_sede}"
     )
 
 
@@ -760,7 +795,13 @@ def build_summary(c: Collections) -> Dict[str, Any]:
 def get_type_user(
     tipoEstudiante: str
 ) -> str:
-    return f"Estudiante {tipoEstudiante.capitalize()}"
+    return f"ESTUDIANTE {tipoEstudiante.upper()}"
+
+
+def get_name_type_user(
+    name: str
+) -> str:
+    return f"{name.upper()} ESTUDIANTE"
 
 
 def log_collections(c: Collections) -> None:

@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from fastapi import HTTPException
+import re
 from typing import Dict, Any, List, Tuple, Set
 from openpyxl.worksheet.worksheet import Worksheet
 from openpyxl.cell.cell import Cell
@@ -533,7 +534,7 @@ def _get_unit_from_row(row: Tuple[Cell, ...]) -> UnitUnalInput:
     return UnitUnalInput(
         cod_unit=cod_unit,
         email=email,
-        name=unit,
+        name=_get_clean_name(unit),
         description=None,
         type_user=nombre_vinculacion,
     )
@@ -558,7 +559,7 @@ def _get_school_from_row(
     return SchoolInput(
         cod_school=cod_school,
         email=email,
-        name=facultad,
+        name=_get_name_type_user(facultad) or None,
         description=None,
         general_code=None,
         type_user=None
@@ -574,11 +575,21 @@ def _get_headquarters_from_row(row: Tuple[Cell, ...]) -> HeadquartersInput:
     return HeadquartersInput(
         cod_headquarters=cod_sede,
         email=email,
-        name=sede,
+        name=_get_name_type_user(sede) or None,
         description=None,
         general_code=None,
         type_user=None
     )
+
+
+def _get_clean_name(name: str) -> str:
+    cleaned_name = re.sub(r"^\d+\s*-\s*", "", name).strip()
+    return cleaned_name
+
+
+def _get_name_type_user(name: str) -> str:
+    cleaned_name = _get_clean_name(name)
+    return f"{cleaned_name.upper()} DOCENTE ADMINISTRATIVO"
 
 
 def __get_type_user_from_row(row: Tuple[Cell, ...]) -> TypeUserInput:

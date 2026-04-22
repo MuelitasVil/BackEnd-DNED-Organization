@@ -54,7 +54,8 @@ def build_empty_seen():
         school_headquarters_assocs=set(),
         unit_with_school=set(),
         user_types=set(),
-        type_user_assocs=set()
+        type_user_assocs=set(),
+        primary_unit_by_base={}
     )
 
 
