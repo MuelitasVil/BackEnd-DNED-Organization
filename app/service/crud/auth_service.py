@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 
+from app.configuration.settings import settings
 from app.domain.models.system_user import SystemUser
 from app.domain.models.jwt_token import Token
 from app.repository.auth_repository import AuthRepository
@@ -13,7 +14,7 @@ from app.exceptions.auth_exceptions import (
     EmailAlreadyRegisteredException
 )
 
-SECRET_KEY = "YOUR_SECRET_KEY"
+SECRET_KEY = settings.SECRET_KEY
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 

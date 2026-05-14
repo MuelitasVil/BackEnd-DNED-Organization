@@ -4,10 +4,11 @@ from fastapi import Depends, HTTPException
 from sqlalchemy.orm import Session
 import jwt
 
+from app.configuration.settings import settings
 from app.configuration.database import get_session
 from app.repository.auth_repository import AuthRepository
 
-SECRET_KEY = "YOUR_SECRET_KEY"
+SECRET_KEY = settings.SECRET_KEY
 ALGORITHM = "HS256"
 
 token_scheme = HTTPBearer()  # solo token sin formulario

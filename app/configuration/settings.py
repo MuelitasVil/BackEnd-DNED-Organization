@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     MYSQL_PORT: int
     MYSQL_ROOT: str
     WORKSPACE_MANAGER_URL: str
+    SECRET_KEY: str
 
 
 settings = Settings()
