@@ -206,7 +206,7 @@ CREATE TABLE IF NOT EXISTS system_user (
     email           VARCHAR(100) PRIMARY KEY,
     created_at      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     hashed_password VARCHAR(255) NOT NULL,
-    state           BOOLEAN      NOT NULL DEFAULT TRUE,
+    state           BOOLEAN      NOT NULL DEFAULT FALSE,
     salt            VARCHAR(255) NOT NULL
 ) ENGINE=InnoDB;
 

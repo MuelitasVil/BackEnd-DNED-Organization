@@ -161,5 +161,3 @@ Si tienes preguntas, sugerencias o deseas contribuir, no dudes en abrir un issue
 
 ### SQLAlchemy:
 - https://docs.sqlalchemy.org/en/20/tutorial/engine.html
-
-

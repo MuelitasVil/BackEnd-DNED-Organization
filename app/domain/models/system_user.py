@@ -8,5 +8,5 @@ class SystemUser(SQLModel, table=True):
     email: str = Field(primary_key=True, max_length=100)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     hashed_password: str
-    state: bool = True
+    state: bool = False
     salt: str = Field(max_length=255)

@@ -1,12 +1,8 @@
 from app.domain.dtos.auth.register_input import RegisterInput
-
 from app.domain.dtos.auth.login_input import LoginInput
 from app.service.crud.auth_service import AuthService
-
 from fastapi import APIRouter, Depends, HTTPException
-
 from sqlalchemy.orm import Session
-
 from app.configuration.database import get_session
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
