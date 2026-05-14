@@ -27,7 +27,7 @@ from .controllers import (
 )
 
 from fastapi import FastAPI, Request
-from app.utils.auth import get_current_user
+from app.utils.validate_token import get_current_user
 
 app = FastAPI()
 

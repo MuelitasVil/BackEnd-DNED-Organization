@@ -1,6 +1,6 @@
 from app.domain.dtos.auth.register_input import RegisterInput
 from app.domain.dtos.auth.login_input import LoginInput
-from app.service.crud.auth_service import AuthService
+from app.service.use_cases.auth import AuthService
 from app.exceptions.auth_exceptions import (
     InvalidEmailException,
     EmailAlreadyRegisteredException

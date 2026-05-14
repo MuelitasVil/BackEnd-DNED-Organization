@@ -11,7 +11,7 @@ from app.repository.auth_repository import AuthRepository
 SECRET_KEY = settings.SECRET_KEY
 ALGORITHM = "HS256"
 
-token_scheme = HTTPBearer()  # solo token sin formulario
+token_scheme = HTTPBearer()
 
 
 def get_current_user(
@@ -24,7 +24,7 @@ def get_current_user(
         detail="Token inválido"
     )
 
-    token = token_data.credentials  # el token puro
+    token = token_data.credentials
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
     except jwt.PyJWTError:
