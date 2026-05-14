@@ -41,7 +41,7 @@ def test_register_returns_user_email(monkeypatch):
 def test_register_rejects_non_unal_email(monkeypatch):
     def fake_register(email, password, session):
         raise InvalidEmailException(
-            f"Email must be from @unal.edu.co domain"
+            "Email must be from @unal.edu.co domain"
         )
 
     monkeypatch.setattr(auth_controller.AuthService, "register", fake_register)

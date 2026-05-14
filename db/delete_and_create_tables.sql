@@ -162,13 +162,12 @@ CREATE TABLE IF NOT EXISTS email_sender (
   sede_code VARCHAR(100) NULL,
   level ENUM('PRE','POS','ANY') NOT NULL DEFAULT 'ANY',
   role  ENUM('OWNER','MEMBER') NOT NULL DEFAULT 'OWNER',
-  priority INT NOT NULL DEFAULT 100,
   is_active BOOLEAN NOT NULL DEFAULT TRUE,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NULL ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uq_email (email),
   -- Índices de consulta por ámbito:
-  INDEX idx_scope (org_type, org_code, sede_code, level, role, priority)
+    INDEX idx_scope (org_type, org_code, sede_code, level, role)
 ) ENGINE=InnoDB;
 
 -- Asociación: email_sender con unidad  (PK compuesta)

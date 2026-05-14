@@ -11,7 +11,6 @@ class EmailSenderInput(BaseModel):
     sede_code: Optional[str] = None
     level: str = 'ANY'
     role: str = 'OWNER'
-    priority: int = 100
     is_active: bool = True
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
