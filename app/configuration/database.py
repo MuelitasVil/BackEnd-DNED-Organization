@@ -15,7 +15,6 @@ DATABASE_URL = (
 )
 
 print(f"Connecting to database at {DATABASE_URL}")
-
 engine = create_engine(DATABASE_URL, echo=True)
 
 

@@ -3,6 +3,10 @@ from fastapi.testclient import TestClient
 
 from app.configuration.database import get_session
 from app.controllers import auth_controller
+from app.exceptions.auth_exceptions import (
+    InvalidEmailException,
+    EmailAlreadyRegisteredException
+)
 
 
 app = FastAPI()
@@ -24,14 +28,46 @@ def test_register_returns_user_email(monkeypatch):
 
     response = client.post(
         "/auth/register",
-        json={"email": "new@example.com", "password": "secret"}
+        json={"email": "student@unal.edu.co", "password": "secret"}
     )
 
     assert response.status_code == 200
     assert response.json() == {
         "message": "User registered",
-        "email": "new@example.com"
+        "email": "student@unal.edu.co"
     }
+
+
+def test_register_rejects_non_unal_email(monkeypatch):
+    def fake_register(email, password, session):
+        raise InvalidEmailException(
+            f"Email must be from @unal.edu.co domain"
+        )
+
+    monkeypatch.setattr(auth_controller.AuthService, "register", fake_register)
+
+    response = client.post(
+        "/auth/register",
+        json={"email": "user@gmail.com", "password": "secret"}
+    )
+
+    assert response.status_code == 400
+    assert "must be from @unal.edu.co" in response.json()["detail"]
+
+
+def test_register_rejects_duplicate_email(monkeypatch):
+    def fake_register(email, password, session):
+        raise EmailAlreadyRegisteredException(email)
+
+    monkeypatch.setattr(auth_controller.AuthService, "register", fake_register)
+
+    response = client.post(
+        "/auth/register",
+        json={"email": "student@unal.edu.co", "password": "secret"}
+    )
+
+    assert response.status_code == 409
+    assert "already registered" in response.json()["detail"]
 
 
 def test_login_returns_access_token(monkeypatch):

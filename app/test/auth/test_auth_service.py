@@ -1,9 +1,14 @@
 from datetime import datetime, timezone
 
 import jwt
+import pytest
 
 from app.domain.models.system_user import SystemUser
 from app.service.crud import auth_service
+from app.exceptions.auth_exceptions import (
+    InvalidEmailException,
+    EmailAlreadyRegisteredException
+)
 
 
 class FakeAuthRepository:
@@ -25,17 +30,47 @@ class FakeAuthRepository:
         self.created_token = token
 
 
+def test_register_rejects_non_unal_email(monkeypatch):
+    repo = FakeAuthRepository()
+    monkeypatch.setattr(auth_service, "AuthRepository", lambda session: repo)
+
+    with pytest.raises(InvalidEmailException):
+        auth_service.AuthService.register(
+            "user@gmail.com",
+            "super-secret",
+            session=object()
+        )
+
+
+def test_register_rejects_duplicate_email(monkeypatch):
+    existing_user = SystemUser(
+        email="student@unal.edu.co",
+        hashed_password="hash",
+        salt="salt",
+        state=False
+    )
+    repo = FakeAuthRepository(user=existing_user)
+    monkeypatch.setattr(auth_service, "AuthRepository", lambda session: repo)
+
+    with pytest.raises(EmailAlreadyRegisteredException):
+        auth_service.AuthService.register(
+            "student@unal.edu.co",
+            "super-secret",
+            session=object()
+        )
+
+
 def test_register_hashes_password_and_creates_user(monkeypatch):
     repo = FakeAuthRepository()
     monkeypatch.setattr(auth_service, "AuthRepository", lambda session: repo)
 
     user = auth_service.AuthService.register(
-        "user@example.com",
+        "student@unal.edu.co",
         "super-secret",
         session=object()
     )
 
-    assert user.email == "user@example.com"
+    assert user.email == "student@unal.edu.co"
     assert user.state is False
     assert user.salt
     assert user.hashed_password != "super-secret"

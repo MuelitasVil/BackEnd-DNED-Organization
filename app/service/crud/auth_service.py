@@ -7,6 +7,11 @@ from passlib.context import CryptContext
 from app.domain.models.system_user import SystemUser
 from app.domain.models.jwt_token import Token
 from app.repository.auth_repository import AuthRepository
+from app.utils.google_email_validator import GoogleEmailValidator
+from app.exceptions.auth_exceptions import (
+    InvalidEmailException,
+    EmailAlreadyRegisteredException
+)
 
 SECRET_KEY = "YOUR_SECRET_KEY"
 ALGORITHM = "HS256"
@@ -19,6 +24,16 @@ class AuthService:
     @staticmethod
     def register(email: str, password: str, session: Session) -> SystemUser:
         repo = AuthRepository(session)
+
+        try:
+            GoogleEmailValidator.validate_and_raise(email)
+        except ValueError as e:
+            raise InvalidEmailException(str(e))
+
+        existing_user = repo.get_user_by_email(email)
+        if existing_user:
+            raise EmailAlreadyRegisteredException(email)
+
         salt = uuid.uuid4().hex
         hashed = pwd_context.hash(password + salt)
         user = SystemUser(
