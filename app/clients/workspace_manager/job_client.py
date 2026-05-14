@@ -1,6 +1,6 @@
 import httpx
 
-from app.configuration.config import settings
+from app.configuration.settings import settings
 
 base_url = settings.WORKSPACE_MANAGER_URL
 
