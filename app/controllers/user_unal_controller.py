@@ -71,3 +71,15 @@ def delete_user(
     deleted = UserUnalService.delete(email_unal, session)
     if not deleted:
         raise HTTPException(status_code=404, detail="User not found")
+
+@router.delete("/delete-all-asociation-info-by-period/{cod_period}",
+                status_code=status.HTTP_204_NO_CONTENT)
+def delete_all_association_info_by_period(
+    cod_period: str,
+    session: Session = Depends(get_session)
+):
+    # Implementation for deleting association info by period
+    pass
+    if not user_info:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user_info

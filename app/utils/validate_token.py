@@ -18,7 +18,6 @@ def get_current_user(
     token_data: str = Depends(token_scheme),
     session: Session = Depends(get_session)
 ) -> str:
-    print("Token recibido:", token_data)
     credentials_exception = HTTPException(
         status_code=401,
         detail="Token inválido"
