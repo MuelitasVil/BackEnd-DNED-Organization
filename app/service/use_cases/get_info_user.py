@@ -33,7 +33,7 @@ def get_info_user(
         )
 
     stmt = (
-        text("CALL GetUserAcademicData(:email)")
+        text("CALL get_user_academic_data(:email)")
         .bindparams(email=email_unal)
     )
 

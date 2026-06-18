@@ -17,7 +17,7 @@ Este proyecto es una API desarrollada en **FastAPI** con persistencia de datos e
 
 ## Requisitos
 
-- Python 3.11 o superior
+- requires-python = ">=3.13,<3.14"
 - MySQL 8.0 o superior (si se ejecuta en local)
 - PowerShell o terminal compatible para entornos virtuales
 
